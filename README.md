@@ -1,8 +1,8 @@
 <p align="center">
   <img 
-    src="https://i.imgur.com/H5lyBFn.png" 
+    src="" 
     width="120px"
-    alt="ICONation logo">
+    alt="MultiSigWallet logo">
 </p>
 
 <h1 align="center">MultiSigWallet</h1>
@@ -10,19 +10,6 @@
  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Introduction
-
-MultiSigWallet is a fully **open source**, **free** service that allows any ICONist to **safely trade** with anyone IRC2 tokens against any other.
-
-It is an alternative solution to the [Over-The-Counter](https://www.investopedia.com/terms/o/otc.asp) (OTC) trading method taking place on few unlisted tokens on ICON.
-
-Alternatively, MultiSigWallet may be used by other SCORE developers willing to implement a token swap in their contract : the MultiSigWallet SCORE contract may be called from another SCORE.
-
-You can read and **review the open source code** here :
-
-SCORE GitHub : [https://github.com/iconation/MultiSigWallet-SCORE](https://github.com/iconation/MultiSigWallet-SCORE)
-
-GUI GitHub : [https://github.com/iconation/MultiSigWallet](https://github.com/iconation/MultiSigWallet) 
-
 
 ## Table of Contents
 
@@ -36,8 +23,10 @@ Here is a checklist you will need to follow in order to deploy MultiSigWallet to
     * `sudo apt install jq`
   * Clone the MultiSigWallet repository:
     * `git clone https://github.com/iconation/MultiSigWallet.git && cd MultiSigWallet`
-  * Start tbears using the `start_tbears.sh` script located at the root folder of the MultiSigWallet repository
-    * `./start_tbears.sh`
+  * Bootstrap tbears using the `bootstrap_tbears.sh` script located in the tbears folder of the MultiSigWallet repository
+    * `./tbears/bootstrap_tbears.sh`
+  * Everytime you want to keep working on this contract, start tbears using the `start_tbears.sh` script located in the tbears folder of the MultiSigWallet repository
+    * `./tbears/start_tbears.sh`
   * Install the operator wallets:
     * `./install.sh`
     * It will generate 3 operator wallets : 

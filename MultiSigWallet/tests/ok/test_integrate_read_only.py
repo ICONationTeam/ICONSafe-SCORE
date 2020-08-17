@@ -1,0 +1,503 @@
+# -*- coding: utf-8 -*-
+
+# Copyright 2018 ICON Foundation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import json
+
+from iconservice.base.exception import IconScoreException
+
+from MultiSigWallet.tests import create_address
+from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
+from iconservice import IconScoreException, ZERO_SCORE_ADDRESS
+from iconservice import *
+
+
+class TestIntegrateReadOnly(MultiSigWalletTests):
+
+    def setUp(self):
+        super().setUp()
+
+    def test_get_transaction_info(self):
+        # submit transaction
+        change_requirement_params = [
+            {'name': 'owners_required',
+             'type': 'int',
+             'value': 2}
+        ]
+        change_requirement_method = 'set_wallet_owners_required'
+        submit_tx_params = {'destination': str(self._score_address),
+                            'method_name': change_requirement_method,
+                            'params': json.dumps(change_requirement_params),
+                            'description': ''}
+
+        submit_tx = transaction_call_success(super(), from_=self._operator,
+                                             to_=self._score_address,
+                                             method='submit_transaction',
+                                             params=submit_tx_params,
+                                             icon_service=self.icon_service
+                                             )
+
+        # success case: search exist transaction
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionInfo",
+                "params": {"transaction_uid": "0"}
+            }
+        }
+
+        actual_transaction_data = self._query(query_request)
+        self.assertEqual(0, actual_transaction_data["_executed"])
+        self.assertEqual(str(self._score_address), actual_transaction_data["_destination"])
+        self.assertEqual(change_requirement_method, actual_transaction_data["_method"])
+
+        # failure case: try to search not exist transaction(should return None)
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionInfo",
+                "params": {"transaction_uid": "1"}
+            }
+        }
+        actual_transaction_data = self._query(query_request)
+        self.assertEqual({}, actual_transaction_data)
+
+    def test_get_transaction_list_and_get_transaction_count(self):
+        # success case: get transaction list
+        submit_txs = []
+        for idx in range(0, 50):
+            change_requirement_params = [
+                {'name': 'owners_required',
+                 'type': 'int',
+                 'value': 2}
+            ]
+            submit_tx_params = {'destination': str(self._score_address),
+                                'method_name': 'set_wallet_owners_required',
+                                'params': json.dumps(change_requirement_params),
+                                'description': f'get transaction test id:{idx}'}
+
+            submit_tx = transaction_call_success(super(), from_=self._operator,
+                                                 to_=self._score_address,
+                                                 method='submit_transaction',
+                                                 params=submit_tx_params,
+                                                 icon_service=self.icon_service
+                                                 )
+            submit_txs.append(submit_tx)
+
+        prev_block, tx_results = self._make_and_req_block(submit_txs)
+
+        # check wallet_owner who has confirmed transaction
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionList",
+                "params": {"_offset": "0", "_count": "10"}
+            }
+        }
+        actual_tx_list = self._query(query_request)
+        for idx, actual_tx in enumerate(actual_tx_list):
+            if actual_tx["transaction_uid"] == idx:
+                self.assertEqual(0, actual_tx["_executed"])
+                self.assertEqual(str(self._score_address), actual_tx["_destination"])
+                self.assertEqual(f'get transaction test id:{idx}', actual_tx["_description"])
+
+        # failure case: request more than 50 list
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionList",
+                "params": {"_offset": "0", "_count": "51"}
+            }
+        }
+
+        expected_massage = "requests that exceed the allowed amount"
+        try:
+            actual_massage = self._query(query_request)
+        except IconScoreException as e:
+            actual_massage = e.message
+            pass
+        self.assertEqual(expected_massage, actual_massage)
+
+        # success case: get pending transaction list
+        confirm_txs = []
+        for idx in range(0, 50, 2):
+            confirm_tx_params = {'transaction_uid': f'{idx}'}
+            result = transaction_call_success(super(), from_=self._owner2,
+                                              to_=self._score_address,
+                                              method='confirm_transaction',
+                                              params=confirm_tx_params,
+                                              icon_service=self.icon_service
+                                              )
+            confirm_txs.append(confirm_tx)
+        prev_block, tx_results = self._make_and_req_block(confirm_txs)
+
+        for result in tx_results:
+            self.assertEqual(result.status, int(True))
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionList",
+                "params": {"_offset": "0", "_count": "10", "_executed": "0"}
+            }
+        }
+        actual_tx_list = self._query(query_request)
+        idx = 1
+        for actual_tx in actual_tx_list:
+            if actual_tx["transaction_uid"] == idx:
+                self.assertEqual(0, actual_tx["_executed"])
+                self.assertEqual(str(self._score_address), actual_tx["_destination"])
+                self.assertEqual(f'get transaction test id:{idx}', actual_tx["_description"])
+                idx += 2
+
+        # success case: get executed transaction list
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionList",
+                "params": {"_offset": "0", "_count": "10", "_pending": "0"}
+            }
+        }
+        actual_tx_list = self._query(query_request)
+        idx = 0
+        for actual_tx in actual_tx_list:
+            if actual_tx["transaction_uid"] == idx:
+                self.assertEqual(1, actual_tx["_executed"])
+                self.assertEqual(str(self._score_address), actual_tx["_destination"])
+                self.assertEqual(f'get transaction test id:{idx}', actual_tx["_description"])
+                idx += 2
+
+        # success case: get exceed transaction list
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionList",
+                "params": {"_offset": "45", "_count": "10"}
+            }
+        }
+        actual_tx_list = self._query(query_request)
+        self.assertEqual(5, len(actual_tx_list))
+
+        # success case: test getTransactionCount(should pending transaction: 25, executed transaction: 50)
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionCount",
+                "params": {"_pending": "1", "_executed": "1"}
+            }
+        }
+        actual_tx_count = self._query(query_request)
+        self.assertEqual(50, actual_tx_count)
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionCount",
+                "params": {"_pending": "1", "_executed": "0"}
+            }
+        }
+        actual_pending_tx_count = self._query(query_request)
+        self.assertEqual(25, actual_pending_tx_count)
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getTransactionCount",
+                "params": {"_pending": "0", "_executed": "1"}
+            }
+        }
+        actual_executed_tx_count = self._query(query_request)
+        self.assertEqual(25, actual_executed_tx_count)
+
+    def test_get_wallet_owners(self):
+        owners = [str(create_address()) for x in range(0, 50)]
+
+        # deploy multisig wallet which has 50 wallet owners.
+        tx1 = self._make_deploy_tx("",
+                                   "multisig_wallet",
+                                   self._addr_array[0],
+                                   ZERO_SCORE_ADDRESS,
+                                   deploy_params={"_walletOwners": ','.join(owners),
+                                                  "_required": "2"})
+
+        prev_block, tx_results = self._make_and_req_block([tx1])
+
+        self.assertEqual(int(True), result['status'])
+        _score_address = tx_results[0].score_address
+
+        # success case: get wallet owners 0 ~ 9, 10 ~ 19, 20 ~ 29, 30 ~ 39, 40 ~ 49
+        for x in range(1, 5):
+            query_request = {
+                "version": self._version,
+                "from": self._admin,
+                "to": _score_address,
+                "dataType": "call",
+                "data": {
+                    "method": "getWalletOwners",
+                    "params": {"_offset": f"{10*x}", "_count": "10"}
+                }
+            }
+            expected_owners = owners[10 * x: 10 + 10 * x]
+            actual_owners = self._query(query_request)
+            self.assertEqual(expected_owners, actual_owners)
+
+        # success case: exceed owner list(should return owners that does not exceed)
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": _score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getWalletOwners",
+                "params": {"_offset": "45", "_count": "30"}
+            }
+        }
+        expected_owners = owners[45:50]
+        actual_owners = self._query(query_request)
+        self.assertEqual(expected_owners, actual_owners)
+
+    def test_get_confirmations_and_get_confirmation_count(self):
+        # success case: get owner list of confirmed transaction
+        owners = [str(create_address()) for x in range(0, 50)]
+
+        # deploy multisig wallet which has 50 wallet owners.
+        tx1 = self._make_deploy_tx("",
+                                   "multisig_wallet",
+                                   self._addr_array[0],
+                                   ZERO_SCORE_ADDRESS,
+                                   deploy_params={"_walletOwners": ','.join(owners),
+                                                  "_required": "50"})
+
+        prev_block, tx_results = self._make_and_req_block([tx1])
+
+        self.assertEqual(int(True), result['status'])
+        _score_address = tx_results[0].score_address
+
+        # submit transaction
+        change_requirement_params = [
+            {'name': 'owners_required',
+             'type': 'int',
+             'value': 2}
+        ]
+        submit_tx_params = {'destination': str(_score_address),
+                            'method_name': 'set_wallet_owners_required',
+                            'params': json.dumps(change_requirement_params),
+                            'description': ""}
+
+        submit_tx = transaction_call_success(super(), from_=Address.from_string(owners[0]),
+                                             addr_to=_score_address,
+                                             method='submit_transaction',
+                                             params=submit_tx_params,
+                                             icon_service=self.icon_service
+                                             )
+
+        # getConfirmationCount should be 1
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": _score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getConfirmationCount",
+                "params": {"transaction_uid": "0"}
+            }
+        }
+        actual_confirmation_count = self._query(query_request)
+        self.assertEqual(1, actual_confirmation_count)
+
+        # confirm transaction(odd owners confirm, even owners not confirm)
+        confirm_txs = []
+        for idx, owner in enumerate(owners):
+            if idx % 2 == 0:
+                continue
+            confirm_tx_params = {'transaction_uid': '0x00'}
+            result = transaction_call_success(super(), from_=Address.from_string(owner),
+                                              addr_to=_score_address,
+                                              method='confirm_transaction',
+                                              params=confirm_tx_params,
+                                              icon_service=self.icon_service
+                                              )
+            confirm_txs.append(confirm_tx)
+        prev_block, tx_results = self._make_and_req_block(confirm_txs)
+
+        for tx_result in tx_results:
+            self.assertEqual(int(True), tx_result.status)
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": _score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getConfirmations",
+                "params": {"_offset": "0", "_count": "50", "transaction_uid": "0"}
+            }
+        }
+        expected_owners = [owner for idx, owner in enumerate(owners) if idx % 2 == 1]
+        expected_owners.insert(0, owners[0])
+
+        actual_owners = self._query(query_request)
+        self.assertEqual(expected_owners, actual_owners)
+
+        # getConfirmationCount should be 26(submit wallet owner 1 + confirm wallet owner 25)
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": _score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getConfirmationCount",
+                "params": {"transaction_uid": "0"}
+            }
+        }
+        actual_confirmation_count = self._query(query_request)
+        self.assertEqual(26, actual_confirmation_count)
+
+    def test_get_total_number_of_wallet_owner(self):
+        # success case: get total number of wallet owner (should be 3 as default deployed wallet is 2 to 3)
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getWalletOwnerCount",
+                "params": {}
+            }
+        }
+        actual_executed_tx_count = self._query(query_request)
+        self.assertEqual(3, actual_executed_tx_count)
+
+        # success case: after add owner, try get total number of wallet owner (should be 4)
+        add_wallet_owner_params = [
+            {"name": "_walletOwner",
+             "type": "Address",
+             "value": str(self._owner4)}
+        ]
+        submit_tx_params = {"_destination": str(self._score_address),
+                            "_method": "addWalletOwner",
+                            "_params": json.dumps(add_wallet_owner_params),
+                            "_description": "add owner4 in wallet"}
+
+        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
+                                                              to_=self._score_address,
+                                                              method="submit_transaction",
+                                                              params=submit_tx_params,
+                                                              icon_service=self.icon_service
+                                                              )
+        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
+
+        self.assertEqual(result['status'], int(True))
+
+        # confirm transaction
+        confirm_tx_params = {"transaction_uid": "0x00"}
+        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._owner2,
+                                                              to_=self._score_address,
+                                                              method="confirm_transaction",
+                                                              params=confirm_tx_params,
+                                                              icon_service=self.icon_service
+                                                              )
+        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
+
+        self.assertEqual(int(True), result['status'])
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getWalletOwnerCount",
+                "params": {}
+            }
+        }
+        actual_executed_tx_count = self._query(query_request)
+        self.assertEqual(4, actual_executed_tx_count)
+
+        # success case: after remove owner, try get total number of wallet owner (should be 3)
+        remove_wallet_owner_params = [
+            {"name": "_walletOwner",
+             "type": "Address",
+             "value": str(self._owner3)}
+        ]
+        submit_tx_params = {"_destination": str(self._score_address),
+                            "_method": "removeWalletOwner",
+                            "_params": json.dumps(remove_wallet_owner_params),
+                            "_description": "remove wallet owner3 in wallet"}
+
+        remove_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
+                                                                 to_=self._score_address,
+                                                                 method="submit_transaction",
+                                                                 params=submit_tx_params,
+                                                                 icon_service=self.icon_service
+                                                                 )
+        prev_block, tx_results = self._make_and_req_block([remove_wallet_owner_submit_tx])
+
+        self.assertEqual(True, result['status'])
+
+        # confirm transaction
+        confirm_tx_params = {'transaction_uid': '0x01'}
+        result = transaction_call_success(super(), from_=self._owner2,
+                                          to_=self._score_address,
+                                          method='confirm_transaction',
+                                          params=confirm_tx_params,
+                                          icon_service=self.icon_service
+                                          )
+        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+
+        self.assertEqual(True, result['status'])
+
+        query_request = {
+            "version": self._version,
+            "from": self._admin,
+            "to": self._score_address,
+            "dataType": "call",
+            "data": {
+                "method": "getWalletOwnerCount",
+                "params": {}
+            }
+        }
+        actual_executed_tx_count = self._query(query_request)
+        self.assertEqual(3, actual_executed_tx_count)

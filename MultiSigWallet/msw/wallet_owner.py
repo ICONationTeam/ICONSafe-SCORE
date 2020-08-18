@@ -42,6 +42,7 @@ class WalletOwnerFactory(IdFactory):
         wallet_owner_uid = self.get_uid()
 
         owner = WalletOwner(wallet_owner_uid, self._db)
+
         owner._address.set(address)
         owner._name.set(name)
 
@@ -49,7 +50,7 @@ class WalletOwnerFactory(IdFactory):
 
 
 class WalletOwnerDescription(TypedDict):
-    address: Address
+    address: str
     name: str
 
 

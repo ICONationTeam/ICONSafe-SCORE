@@ -34,4 +34,4 @@ sync.sh
 .iscoredb
 .testscore
 .teststatedb
-tbears/
+rc-*.log

@@ -17,6 +17,7 @@
 import json
 
 from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
+from MultiSigWallet.tests.utils import *
 
 
 class TestIntegrateWalletMethod(MultiSigWalletTests):
@@ -27,96 +28,64 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
     def test_only_wallet_execute_method(self):
         # failure case: call method using normal owner
         # all external method which change the state of wallet(e.g. requirement) should be called by own wallet
-        change_requirement_params = {"_required": "3"}
-        change_requirement_tx = transaction_call_success(super(), from_=self._operator,
-                                                         to_=self._score_address,
-                                                         method="set_wallet_owners_required",
-                                                         params=change_requirement_params,
-                                                         icon_service=self.icon_service
-                                                         )
-
-        add_wallet_owner_params = {"_walletOwner": str(self._owner4)}
-        add_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
+        change_requirement_params = {"owners_required": "3"}
+        change_requirement_tx = transaction_call_error(super(), from_=self._operator,
                                                        to_=self._score_address,
-                                                       method="addWalletOwner",
-                                                       params=add_wallet_owner_params,
+                                                       method="set_wallet_owners_required",
+                                                       params=change_requirement_params,
                                                        icon_service=self.icon_service
                                                        )
 
-        replace_wallet_owner_params = {"_walletOwner": str(self._operator), "_newWalletOwner": str(self._owner4)}
+        add_wallet_owner_params = {"address": str(self._user), "name": "user"}
+        add_wallet_owner_tx = transaction_call_error(super(), from_=self._operator,
+                                                     to_=self._score_address,
+                                                     method="add_wallet_owner",
+                                                     params=add_wallet_owner_params,
+                                                     icon_service=self.icon_service
+                                                     )
 
-        replace_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
-                                                           to_=self._score_address,
-                                                           method="replaceWalletOwner",
-                                                           params=replace_wallet_owner_params,
-                                                           icon_service=self.icon_service
-                                                           )
+        replace_wallet_owner_params = {
+            "old_wallet_owner_uid": self.get_wallet_owner_uid(self._operator.get_address()),
+            "new_address": str(self._user),
+            "new_name": "user"
+        }
+        replace_wallet_owner_tx = transaction_call_error(super(), from_=self._operator,
+                                                         to_=self._score_address,
+                                                         method="replace_wallet_owner",
+                                                         params=replace_wallet_owner_params,
+                                                         icon_service=self.icon_service
+                                                         )
 
-        remove_wallet_owner_params = {"_walletOwner": str(self._operator)}
-        remove_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
-                                                          to_=self._score_address,
-                                                          method="addWalletOwner",
-                                                          params=remove_wallet_owner_params,
-                                                          icon_service=self.icon_service
-                                                          )
+        remove_wallet_owner_params = {"wallet_owner_uid": self.get_wallet_owner_uid(self._operator.get_address())}
+        remove_wallet_owner_tx = transaction_call_error(super(), from_=self._operator,
+                                                        to_=self._score_address,
+                                                        method="remove_wallet_owner",
+                                                        params=remove_wallet_owner_params,
+                                                        icon_service=self.icon_service
+                                                        )
 
-        prev_block, tx_results = self._make_and_req_block([change_requirement_tx,
-                                                           add_wallet_owner_tx,
-                                                           replace_wallet_owner_tx,
-                                                           remove_wallet_owner_tx])
+        tx_results = [change_requirement_tx, add_wallet_owner_tx, replace_wallet_owner_tx, remove_wallet_owner_tx]
 
         for tx_result in tx_results:
-            self.assertEqual(int(False), tx_result.status)
+            self.assertEqual(False, tx_result['status'])
 
     def test_add_wallet_owner(self):
-        # success case: add wallet owner4 successfully
-        add_wallet_owner_params = [
-            {"name": "_walletOwner",
-             "type": "Address",
-             "value": str(self._owner4)}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "addWalletOwner",
-                            "_params": json.dumps(add_wallet_owner_params),
-                            "_description": "add owner4 in wallet"}
+        self.set_wallet_owners_required(2)
 
-        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                              to_=self._score_address,
-                                                              method="submit_transaction",
-                                                              params=submit_tx_params,
-                                                              icon_service=self.icon_service
-                                                              )
-        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
-
-        self.assertEqual(result['status'], int(True))
+        # success case: add wallet user successfully
+        result = self.add_wallet_owner(self._user.get_address(), "new_owner", success=True)
+        txuid = self.get_transaction_uid_created(result)
 
         # confirm transaction
-        confirm_tx_params = {"transaction_uid": "0x00"}
-        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._owner2,
-                                                              to_=self._score_address,
-                                                              method="confirm_transaction",
-                                                              params=confirm_tx_params,
-                                                              icon_service=self.icon_service
-                                                              )
-        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
+        self.confirm_transaction(txuid, from_=self._owner2, success=True)
 
-        self.assertEqual(int(True), result['status'])
+        # check wallet owners(user should be added)
+        owners = self.get_wallet_owners()
+        owners = list(map(lambda x: x['address'], owners))
+        expected_owners = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address(), self._user.get_address()]
+        self.assertEqual(expected_owners, owners)
 
-        # check wallet owners(owner4 should be added)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner3), str(self._owner4)]
-        self.assertEqual(response, expected_owners)
-
+    """
         # failure case: add already exist wallet owner
         add_wallet_owner_params = [
             {"name": "_walletOwner",
@@ -167,18 +136,18 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
             }
         }
         response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner3), str(self._owner4)]
+        expected_owners = [str(self._operator), str(self._owner2), str(self._owner3), str(self._user)]
         self.assertEqual(response, expected_owners)
 
     def test_replace_wallet_owner(self):
-        # success case: replace owner successfully(owner3 -> owner4)
+        # success case: replace owner successfully(owner3 -> user)
         replace_wallet_owner_params = [
             {'name': '_walletOwner',
              'type': 'Address',
              'value': str(self._owner3)},
             {'name': '_newWalletOwner',
              'type': 'Address',
-             'value': str(self._owner4)}
+             'value': str(self._user)}
         ]
         replace_tx_params = {'destination': str(self._score_address),
                              'method_name': 'replaceWalletOwner',
@@ -207,7 +176,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         self.assertEqual(True, result['status'])
 
-        # check the wallet owner list(should be owner1, owner2, owner4)
+        # check the wallet owner list(should be owner1, owner2, user)
         query_request = {
             "version": self._version,
             "from": self._admin,
@@ -219,7 +188,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
             }
         }
         response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner4)]
+        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
         self.assertEqual(expected_owners, response)
 
         # failure case: try replace wallet owner who is not listed
@@ -259,7 +228,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         self.assertEqual(True, result['status'])
 
-        # check if the wallet owner list is not changed(should be owner1, owner2, owner4)
+        # check if the wallet owner list is not changed(should be owner1, owner2, user)
         query_request = {
             "version": self._version,
             "from": self._admin,
@@ -271,7 +240,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
             }
         }
         response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner4)]
+        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
         self.assertEqual(expected_owners, response)
 
         # check execution failure
@@ -286,7 +255,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
              'value': str(self._operator)},
             {'name': '_newWalletOwner',
              'type': 'Address',
-             'value': str(self._owner4)}
+             'value': str(self._user)}
         ]
         replace_tx_params = {'destination': str(self._score_address),
                              'method_name': 'replaceWalletOwner',
@@ -316,7 +285,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         self.assertEqual(True, result['status'])
 
-        # check if the wallet owner list is not changed(should be owner1, owner2, owner4)
+        # check if the wallet owner list is not changed(should be owner1, owner2, user)
         query_request = {
             "version": self._version,
             "from": self._admin,
@@ -328,7 +297,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
             }
         }
         response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner4)]
+        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
         self.assertEqual(expected_owners, response)
 
         # check execution failure
@@ -341,12 +310,12 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         remove_wallet_owner_params = [
             {"name": "_walletOwner",
              "type": "Address",
-             "value": str(self._owner4)}
+             "value": str(self._user)}
         ]
         submit_tx_params = {"_destination": str(self._score_address),
                             "_method": "removeWalletOwner",
                             "_params": json.dumps(remove_wallet_owner_params),
-                            "_description": "remove wallet owner4 in wallet"}
+                            "_description": "remove wallet user in wallet"}
 
         remove_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
                                                                  to_=self._score_address,
@@ -668,3 +637,4 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         expected_requirement = 1
         actual_requiremnt = self._query(query_request)
         self.assertEqual(expected_requirement, actual_requiremnt)
+"""

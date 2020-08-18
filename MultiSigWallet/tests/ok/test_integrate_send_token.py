@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
+from MultiSigWallet.tests.utils import *
 
 import json
 
@@ -24,275 +25,88 @@ class TestIntegrateSendToken(MultiSigWalletTests):
     def setUp(self):
         super().setUp()
 
+    def send_token(self, value, to):
+        return irc2_transfer(super(),
+                             from_=self._operator,
+                             token=str(self._irc2_address),
+                             to_=to,
+                             value=value,
+                             icon_service=self.icon_service)
+
+    def balance_token(self, address: Address):
+        return get_irc2_balance(super(), str(address), str(self._irc2_address), icon_service=self.icon_service)
+
     def test_send_token(self):
-        # success case: send 500 token to owner4
+        self.set_wallet_owners_required(2)
+
+        # success case: send 500 token to user
         # deposit owner1's 1000 token to multisig wallet score
-        transfer_tx_params = {'_to': str(self._score_address), '_value': str(hex(1000))}
-        result = transaction_call_success(super(), from_=self._operator,
-                                          addr_to=self._irc2_address,
-                                          method='transfer',
-                                          params=transfer_tx_params,
-                                          icon_service=self.icon_service)
-
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.send_token(1000, self._score_address)
 
         # check multisig wallet score's token amount(should be 1000)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._score_address)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(1000, response)
+        balance = self.balance_token(self._score_address)
+        self.assertEqual(1000, balance)
 
-        # check owner4's token amount(should be 0)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._owner4)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(0, response)
+        # check user's token amount(should be 0)
+        balance = self.balance_token(self._user.get_address())
+        self.assertEqual(0, balance)
 
-        # make transaction which send 500 token to owner4
-        transfer_token_params = [
-            {'name': '_to',
-             'type': 'Address',
-             'value': str(self._owner4)},
-            {'name': '_value',
-             'type': 'int',
-             'value': 500}
-        ]
-
-        # submit transaction
-        submit_tx_params = {'destination': str(self._irc2_address),
-                            'method_name': 'transfer',
-                            'params': json.dumps(transfer_token_params),
-                            'description': 'send 500 token to owner4'}
-
-        result = transaction_call_success(super(), from_=self._operator,
-                                          to_=self._score_address,
-                                          method='submit_transaction',
-                                          params=submit_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        # make transaction which send 500 token to user
+        result = self.msw_transfer_irc2(self._irc2_address, self._user.get_address(), 500)
+        txuid = self.get_transaction_uid_created(result)
 
         # check confirmation count(should be 1)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getConfirmationCount",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        expected_confirm_count = 1
-        self.assertEqual(response, expected_confirm_count)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 1)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check confirmation count(should be 2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getConfirmationCount",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(2, response)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 2)
 
-        # check owner4's token amount(should be 500)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._owner4)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(500, response)
+        # check user's token amount(should be 500)
+        balance = self.balance_token(self._user.get_address())
+        self.assertEqual(500, balance)
 
         # check multisig wallet's token amount(should be 500)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._score_address)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(500, response)
+        balance = self.balance_token(self._score_address)
+        self.assertEqual(500, balance)
 
     def test_send_token_revert(self):
-        # failure case: raise revert while sending 500 token to owner4.(500 token should not be sended)
+        self.set_wallet_owners_required(2)
+
+        # failure case: raise revert while sending 500 token to user.(500 token should not be sended)
         # deposit owner1's 1000 token to multisig wallet score
-        transfer_tx_params = {'_to': str(self._score_address), '_value': str(hex(1000))}
-        result = transaction_call_success(super(), from_=self._operator,
-                                          addr_to=self._irc2_address,
-                                          method='transfer',
-                                          params=transfer_tx_params,
-                                          icon_service=self.icon_service)
-
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.send_token(1000, self._score_address)
 
         # check multisig wallet score's token amount(should be 1000)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._score_address)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(1000, response)
+        balance = self.balance_token(self._score_address)
+        self.assertEqual(1000, balance)
 
-        # check owner4's token amount(should be 0)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._owner4)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(0, response)
+        # check user's token amount(should be 0)
+        balance = self.balance_token(self._user.get_address())
+        self.assertEqual(0, balance)
 
-        # make transaction which send 500 token to owner4(call revert_check method)
-        revert_check_params = [
-            {'name': '_to',
-             'type': 'Address',
-             'value': str(self._owner4)},
-            {'name': '_value',
-             'type': 'int',
-             'value': 500}
-        ]
-
-        # submit transaction
-        submit_tx_params = {'destination': str(self._irc2_address),
-                            'method_name': 'revert_check',
-                            'params': json.dumps(revert_check_params),
-                            'description': 'send 500 token to owner4'}
-
-        result = transaction_call_success(super(), from_=self._operator,
-                                          to_=self._score_address,
-                                          method='submit_transaction',
-                                          params=submit_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        # make transaction which send 500 token to user (call revert_check method)
+        result = self.msw_revert_check(self._irc2_address, self._user.get_address(), 500)
+        txuid = self.get_transaction_uid_created(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        self.confirm_transaction(txuid, from_=self._owner2, success=False)
 
-        self.assertEqual(int(True), result['status'])
-
-        # check confirmation count(should be 2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getConfirmationCount",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(2, response)
+        # check confirmation count(should be 1)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 1)
 
         # check transaction executed count(should be False)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getTransactionsExecuted",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(False, response)
+        self.assertEqual("WAITING", transaction["state"])
 
-        # check owner4's token amount(should be 0)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._owner4)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(0, response)
+        # check user's token amount(should be 0)
+        balance = self.balance_token(self._user.get_address())
+        self.assertEqual(0, balance)
 
         # check multisig wallet's token amount(should be 1000)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._irc2_address,
-            "dataType": "call",
-            "data": {
-                "method": "balanceOf",
-                "params": {'_owner': str(self._score_address)}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(1000, response)
+        balance = self.balance_token(self._score_address)
+        self.assertEqual(1000, balance)

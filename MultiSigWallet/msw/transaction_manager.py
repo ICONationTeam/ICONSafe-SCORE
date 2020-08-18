@@ -193,6 +193,14 @@ class TransactionManager:
 
     @external(readonly=True)
     @catch_exception
+    def get_executed_transactions(self, offset: int = 0) -> list:
+        return [
+            Transaction(transaction_uid, self.db).serialize()
+            for transaction_uid in self._executed_transactions.select(offset)
+        ]
+
+    @external(readonly=True)
+    @catch_exception
     def get_waiting_transactions_count(self) -> int:
         return len(self._waiting_transactions)
 

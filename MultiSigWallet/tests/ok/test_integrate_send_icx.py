@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
+from MultiSigWallet.tests.utils import *
 
 ICX_FACTOR = 10 ** 18
 
@@ -25,208 +26,87 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
         super().setUp()
 
     def deposit_icx_to_multisig_score(self, value: int):
-        send_icx_value = value
-        icx_send_tx = self._make_icx_send_tx(self._genesis,
-                                             self._score_address,
-                                             send_icx_value)
-
-        prev_block, tx_results = self._make_and_req_block([icx_send_tx])
-
-        self.assertEqual(result['status'], int(True))
-
-        # check if icx is deposited to multisig wallet successfully
-        query_request = {
-            "address": self._score_address
-        }
-        response = self._query(query_request, 'icx_getBalance')
-        self.assertEqual(send_icx_value, response)
+        icx_transfer_call(super(), self._operator, self._score_address, value, self.icon_service)
+        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
+        self.assertEqual(value, balance)
 
     def test_send_icx_negative_value(self):
         # failure case: submit transaction which send -10 icx to token score
-        submit_tx_params = {'destination': str(self._irc2_address),
-                            'description': 'send negative icx value',
-                            '_value': f'{hex(-10*ICX_FACTOR)}'}
-
-        submit_tx = transaction_call_success(super(), from_=self._operator,
-                                             to_=self._score_address,
-                                             method='submit_transaction',
-                                             params=submit_tx_params,
-                                             icon_service=self.icon_service
-                                             )
-
-        self.assertEqual(result['status'], int(False))
-
-        expected_revert_massage = 'only positive number is accepted'
+        result = self.msw_transfer_icx(self._irc2_address, -10 * ICX_FACTOR, success=False)
+        expected_revert_massage = 'Amount is less than zero'
         actual_revert_massage = result['failure']['message']
         self.assertEqual(expected_revert_massage, actual_revert_massage)
 
     def test_send_icx_to_score(self):
-        # success case: send icx to SCORE(token score)
+        self.set_wallet_owners_required(2)
 
+        # success case: send icx to SCORE(token score)
         # deposit 100 icx to wallet SCORE
-        send_icx_value = 100 * ICX_FACTOR
-        self.deposit_icx_to_multisig_score(send_icx_value)
+        self.deposit_icx_to_multisig_score(100 * ICX_FACTOR)
 
         # submit transaction which send 10 icx to token score
-        submit_tx_params = {'destination': str(self._irc2_address),
-                            'description': 'send 10 icx to token score',
-                            '_value': f'{hex(10*ICX_FACTOR)}'}
-
-        submit_tx = transaction_call_success(super(), from_=self._operator,
-                                             to_=self._score_address,
-                                             method='submit_transaction',
-                                             params=submit_tx_params,
-                                             icon_service=self.icon_service
-                                             )
-
-        self.assertEqual(result['status'], int(True))
+        result = self.msw_transfer_icx(self._irc2_address, 10 * ICX_FACTOR)
+        txuid = self.get_transaction_uid_created(result)
 
         # check token score icx (should be 0)
-        query_request = {
-            "address": self._irc2_address
-        }
-        response = self._query(query_request, "icx_getBalance")
-        self.assertEqual(response, 0)
+        balance = get_icx_balance(super(), str(self._irc2_address), self.icon_service)
+        self.assertEqual(balance, 0)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check getConfirmationCount(should be 2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getConfirmationCount",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        expected_confirm_count = 2
-        self.assertEqual(response, expected_confirm_count)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 2)
 
         # check the token score address' icx
-        query_request = {
-            "address": self._irc2_address
-        }
-
-        expected_token_score_icx = 10 * ICX_FACTOR
-        actual_token_score_icx = self._query(query_request, "icx_getBalance")
-        self.assertEqual(expected_token_score_icx, actual_token_score_icx)
+        balance = get_icx_balance(super(), str(self._irc2_address), self.icon_service)
+        self.assertEqual(balance, 10 * ICX_FACTOR)
 
         # check multisig wallet score's icx(should be 90)
-        query_request = {
-            "address": self._score_address
-        }
-        response = self._query(query_request, "icx_getBalance")
-        self.assertEqual(90 * ICX_FACTOR, response)
+        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
+        self.assertEqual(balance, 90 * ICX_FACTOR)
 
         # failure case: when confirming to already executed transaction,
         # transaction shouldn't be executed again.
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner3,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.confirm_transaction(txuid, from_=self._owner3, success=False)
 
         # check the token score address' icx
-        query_request = {
-            "address": self._irc2_address
-        }
-
-        expected_token_score_icx = 10 * ICX_FACTOR
-        actual_token_score_icx = self._query(query_request, "icx_getBalance")
-        self.assertEqual(expected_token_score_icx, actual_token_score_icx)
+        balance = get_icx_balance(super(), str(self._irc2_address), self.icon_service)
+        self.assertEqual(balance, 10 * ICX_FACTOR)
 
         # check multisig wallet score's icx(should be 90)
-        query_request = {
-            "address": self._score_address
-        }
-        response = self._query(query_request, "icx_getBalance")
-        self.assertEqual(90 * ICX_FACTOR, response)
+        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
+        self.assertEqual(balance, 90 * ICX_FACTOR)
 
     def test_send_icx_to_eoa(self):
-        # success case: send icx to eoa(owner4)
+        self.set_wallet_owners_required(2)
 
+        # success case: send icx to eoa (user)
         # deposit 100 icx to wallet SCORE
-        send_icx_value = 100 * ICX_FACTOR
-        self.deposit_icx_to_multisig_score(send_icx_value)
+        self.deposit_icx_to_multisig_score(100 * ICX_FACTOR)
 
-        # submit transaction which send 10 icx to owner4
-        submit_tx_params = {'destination': str(self._owner4),
-                            'description': 'send 10 icx to owner4',
-                            '_value': f'{hex(10*ICX_FACTOR)}'}
+        initial_balance = get_icx_balance(super(), str(self._user.get_address()), self.icon_service)
 
-        submit_tx = transaction_call_success(super(), from_=self._operator,
-                                             to_=self._score_address,
-                                             method='submit_transaction',
-                                             params=submit_tx_params,
-                                             icon_service=self.icon_service
-                                             )
+        # submit transaction which send 10 icx to user
+        result = self.msw_transfer_icx(self._user.get_address(), 10 * ICX_FACTOR)
+        txuid = self.get_transaction_uid_created(result)
 
-        self.assertEqual(result['status'], int(True))
-
-        # check token owner4 (should be 0)
-        query_request = {
-            "address": self._owner4
-        }
-        response = self._query(query_request, "icx_getBalance")
-        self.assertEqual(response, 0)
+        # check user ICX balance
+        balance = get_icx_balance(super(), str(self._user.get_address()), self.icon_service)
+        self.assertEqual(balance, initial_balance)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(int(True), result['status'])
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check getConfirmationCount(should be 2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getConfirmationCount",
-                "params": {'transaction_uid': "0x00"}
-            }
-        }
-        response = self._query(query_request)
-        expected_confirm_count = 2
-        self.assertEqual(response, expected_confirm_count)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 2)
 
-        # check the owner4's icx
-        query_request = {
-            "address": self._owner4
-        }
-
-        expected_owner4_icx = 10 * ICX_FACTOR
-        actual_owner4_icx = self._query(query_request, "icx_getBalance")
-        self.assertEqual(expected_owner4_icx, actual_owner4_icx)
+        # check the user's icx
+        balance = get_icx_balance(super(), str(self._user.get_address()), self.icon_service)
+        self.assertEqual(balance, initial_balance + 10 * ICX_FACTOR)
 
         # check multisig wallet score's icx(should be 90)
-        query_request = {
-            "address": self._score_address
-        }
-        response = self._query(query_request, "icx_getBalance")
-        self.assertEqual(90 * ICX_FACTOR, response)
+        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
+        self.assertEqual(balance, 90 * ICX_FACTOR)

@@ -17,6 +17,7 @@
 from iconservice import *
 from .consts import *
 
+
 class Utils():
 
     @staticmethod
@@ -30,13 +31,3 @@ class Utils():
     @staticmethod
     def get_enum_name(cls, index):
         return Utils.enum_names(cls)[index]
-
-    @staticmethod
-    def get_type(type_name: str) -> type:
-        try:
-            return getattr(__builtins__, type_name)
-        except:
-            try:
-                return getattr(iconservice, type_name)
-            except:
-                raise IconScoreException(f"{type_name} is not supported type in SCORE")

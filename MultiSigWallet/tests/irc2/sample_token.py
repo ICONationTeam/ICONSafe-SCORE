@@ -82,6 +82,10 @@ class SampleToken(IconScoreBase, TokenStandard):
     def on_update(self) -> None:
         super().on_update()
 
+    @payable
+    def fallback(self):
+        pass
+
     @external(readonly=True)
     def name(self) -> str:
         return self._name.get()
@@ -128,3 +132,14 @@ class SampleToken(IconScoreBase, TokenStandard):
         # Emits an event log `Transfer`
         self.Transfer(_from, _to, _value, _data)
         Logger.debug(f'Transfer({_from}, {_to}, {_value}, {_data})', TAG)
+
+    @external
+    def revert_check(self, _to: Address, _value: int, _data: bytes = None):
+        if _data is None:
+            _data = b'None'
+        self._revert_check(self.msg.sender, _to, _value, _data)
+
+    def _revert_check(self, _from: Address, _to: Address, _value: int, _data: bytes):
+        self._balances[_to] = self._balances[_to] + _value
+        self.revert("revert test")
+        self._balances[_from] = self._balances[_from] - _value

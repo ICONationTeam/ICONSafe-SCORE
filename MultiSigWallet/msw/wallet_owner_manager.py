@@ -90,9 +90,10 @@ class WalletOwnersManager:
         self._address_to_uid_map[str(address)] = wallet_owner_uid
         self.WalletOwnerAddition(wallet_owner_uid)
 
-    def _remove_wallet_owner(self, address: Address, wallet_owner_uid: int) -> int:
+    def _remove_wallet_owner(self, wallet_owner_uid: int) -> int:
+        owner = WalletOwner(wallet_owner_uid, self.db)
         self._wallet_owners.remove(wallet_owner_uid)
-        self._address_to_uid_map.remove(str(address))
+        self._address_to_uid_map.remove(str(owner._address.get()))
         self.WalletOwnerRemoval(wallet_owner_uid)
 
     # ================================================
@@ -117,7 +118,7 @@ class WalletOwnersManager:
         self._check_requirements(len(self._wallet_owners) - 1, self._wallet_owners_required.get())
 
         # --- OK from here ---
-        self._remove_wallet_owner(address, old_wallet_owner_uid)
+        self._remove_wallet_owner(wallet_owner_uid)
 
     @catch_exception
     @only_wallet
@@ -128,7 +129,7 @@ class WalletOwnersManager:
         self._check_address_doesnt_exist(new_address)
         # --- OK from here ---
         new_wallet_owner_uid = WalletOwnerFactory(self.db).create(address, new_name)
-        self._remove_wallet_owner(WalletOwner(old_wallet_owner_uid, self.db)._address.get(), old_wallet_owner_uid)
+        self._remove_wallet_owner(old_wallet_owner_uid)
         self._add_wallet_owner(new_address, new_wallet_owner_uid)
 
     @catch_exception
@@ -164,7 +165,7 @@ class WalletOwnersManager:
 
     @catch_exception
     @external(readonly=True)
-    def wallet_owners_count(self) -> int:
+    def get_wallet_owners_count(self) -> int:
         return len(self._wallet_owners)
 
     @catch_exception

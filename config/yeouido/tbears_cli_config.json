@@ -7,7 +7,15 @@
         "stepLimit": "0xb2d05e00",
         "contentType": "zip",
         "mode": "install",
-        "scoreParams": {}
+        "scoreParams": {
+            "owners": [
+                {
+                    "address": "hxcc8c9d91d0db660f91d8041af702d79edcb02958",
+                    "name": "operator"
+                }
+            ],
+            "owners_required": "0x1"
+        }
     },
     "txresult": {},
     "transfer": {

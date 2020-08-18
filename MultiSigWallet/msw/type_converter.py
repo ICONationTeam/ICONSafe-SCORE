@@ -23,7 +23,7 @@ class ScoreTypeConverter:
     def convert(param_type: str, value: str):
 
         if not isinstance(value, str):
-            raise IconScoreException("Value type must be str.")
+            raise IconScoreException(f"Value type must be str ({value} is {type(value)}).")
 
         valid_types = {
             "int": ScoreTypeConverter._convert_value_int,

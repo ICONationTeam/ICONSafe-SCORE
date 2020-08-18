@@ -51,14 +51,15 @@ class MultiSigWallet(IconScoreBase,
 
         # --- Checks ---
         self._check_requirements(len(owners), owners_required)
-
         self._wallet_owners_required.set(owners_required)
 
         for owner in owners:
             address, name = owner['address'], owner['name']
             self._check_address_doesnt_exist(address)
 
-            # --- OK from here ---
+        # --- OK from here ---
+        for owner in owners:
+            address, name = owner['address'], owner['name']
             wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
             self._add_wallet_owner(address, wallet_owner_uid)
 
@@ -71,21 +72,8 @@ class MultiSigWallet(IconScoreBase,
         self._version_update(VERSION)
 
     # ================================================
-    #  Migration methods
-    # ================================================.
-
-    # ================================================
-    #  Internal methods
-    # ================================================
-
-    # ================================================
-    #  Checks
-    # ================================================
-
-    # ================================================
     #  External methods
     # ================================================
-    # ------ Tokens management ------
     @catch_exception
     @check_maintenance
     @payable
@@ -98,13 +86,6 @@ class MultiSigWallet(IconScoreBase,
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
 
-    # ------ Meta ------
     @external(readonly=True)
     def name(self) -> str:
         return MultiSigWallet._NAME
-
-    # ------ X ------
-
-    # ================================================
-    #  Operator methods
-    # ================================================

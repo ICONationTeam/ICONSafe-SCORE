@@ -99,6 +99,8 @@ class TransactionManager:
         else:
             self.icx.transfer(destination, amount)
 
+        self.update_icx_balance()
+
     # ================================================
     #  External methods
     # ================================================

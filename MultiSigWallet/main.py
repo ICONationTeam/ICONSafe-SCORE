@@ -17,12 +17,9 @@
 from iconservice import *
 from .scorelib.maintenance import *
 from .scorelib.version import *
-from .scorelib.exception import *
-from .scorelib.auth import *
-from .msw.wallet_owner import *
 from .msw.wallet_owner_manager import *
-from .msw.transaction import *
 from .msw.transaction_manager import *
+from .msw.balance_history_manager import *
 from .consts import *
 
 
@@ -31,7 +28,8 @@ class MultiSigWallet(IconScoreBase,
                      IconScoreVersion,
                      IconScoreExceptionHandler,
                      WalletOwnersManager,
-                     TransactionManager):
+                     TransactionManager,
+                     BalanceHistoryManager):
 
     _NAME = 'MultiSigWallet'
 
@@ -50,7 +48,7 @@ class MultiSigWallet(IconScoreBase,
         self._version_update(VERSION)
 
         # --- Checks ---
-        self._check_requirements(len(owners), owners_required)
+        WalletOwnersManager._check_requirements(len(owners), owners_required)
         self._wallet_owners_required.set(owners_required)
 
         for owner in owners:
@@ -66,26 +64,26 @@ class MultiSigWallet(IconScoreBase,
     def on_update(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_update()
 
-        # if self._is_less_than_target_version('0.1.0'):
-        #     self._migrate_v0_1_0()
+        # if self._is_less_than_target_version('1.0.0'):
+        #     self._migrate_v1_0_0()
 
         self._version_update(VERSION)
 
     # ================================================
     #  External methods
     # ================================================
+    @external(readonly=True)
+    def name(self) -> str:
+        return MultiSigWallet._NAME
+
     @catch_exception
     @check_maintenance
     @payable
     def fallback(self):
-        pass
+        self.update_icx_balance()
 
     @catch_exception
     @check_maintenance
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
         pass
-
-    @external(readonly=True)
-    def name(self) -> str:
-        return MultiSigWallet._NAME

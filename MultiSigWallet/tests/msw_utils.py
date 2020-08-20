@@ -284,6 +284,11 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             if eventlog['indexed'][0] == 'TransactionExecutionSuccess(int)':
                 return int(eventlog['indexed'][1], 0)
 
+    def get_transaction_revoke_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionRevoked(int,int)':
+                return int(eventlog['indexed'][1], 0)
+
     def get_transaction_execution_failure_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionExecutionFailure(int,str)':

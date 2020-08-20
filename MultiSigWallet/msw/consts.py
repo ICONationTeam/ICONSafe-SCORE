@@ -16,4 +16,5 @@
 
 from iconservice import *
 
-VERSION = '1.0.0'
+ICX_TOKEN_ADDRESS = Address.from_string('cx0000000000000000000000000000000000000000')
+ICX_TOKEN_DECIMALS = 18

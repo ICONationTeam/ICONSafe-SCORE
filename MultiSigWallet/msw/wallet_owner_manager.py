@@ -67,7 +67,8 @@ class WalletOwnersManager:
     # ================================================
     #  Checks
     # ================================================
-    def _check_requirements(self, wallet_owner_count: int, owners_required: int):
+    @staticmethod
+    def _check_requirements(wallet_owner_count: int, owners_required: int):
         if (wallet_owner_count > WalletOwnersManager._MAX_WALLET_OWNER_COUNT or
                 owners_required > wallet_owner_count or
                 owners_required <= 0 or
@@ -104,7 +105,7 @@ class WalletOwnersManager:
     @external
     def add_wallet_owner(self, address: Address, name: str) -> None:
         # --- Checks ---
-        self._check_requirements(len(self._wallet_owners) + 1, self._wallet_owners_required.get())
+        WalletOwnersManager._check_requirements(len(self._wallet_owners) + 1, self._wallet_owners_required.get())
         self._check_address_doesnt_exist(address)
         # --- OK from here ---
         wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
@@ -115,7 +116,7 @@ class WalletOwnersManager:
     @external
     def remove_wallet_owner(self, wallet_owner_uid: int) -> None:
         # --- Checks ---
-        self._check_requirements(len(self._wallet_owners) - 1, self._wallet_owners_required.get())
+        WalletOwnersManager._check_requirements(len(self._wallet_owners) - 1, self._wallet_owners_required.get())
 
         # --- OK from here ---
         self._remove_wallet_owner(wallet_owner_uid)
@@ -125,7 +126,7 @@ class WalletOwnersManager:
     @external
     def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str) -> None:
         # --- Checks ---
-        self._check_requirements(len(self._wallet_owners), self._wallet_owners_required.get())
+        WalletOwnersManager._check_requirements(len(self._wallet_owners), self._wallet_owners_required.get())
         self._check_address_doesnt_exist(new_address)
         # --- OK from here ---
         new_wallet_owner_uid = WalletOwnerFactory(self.db).create(new_address, new_name)
@@ -137,7 +138,7 @@ class WalletOwnersManager:
     @external
     def set_wallet_owners_required(self, owners_required: int) -> None:
         # --- Checks ---
-        self._check_requirements(len(self._wallet_owners), owners_required)
+        WalletOwnersManager._check_requirements(len(self._wallet_owners), owners_required)
         # --- OK from here ---
         self._wallet_owners_required.set(owners_required)
 

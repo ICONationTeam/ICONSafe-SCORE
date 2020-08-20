@@ -70,6 +70,6 @@ class BalanceHistory:
             "uid": self._uid,
             "token": str(self._token.get()),
             "balance": self._balance.get(),
-            "txhash": bytes.hex(self._txhash.get()),
+            "txhash": bytes.hex(self._txhash.get()) if self._txhash.get() else "None",
             "timestamp": self._timestamp.get()
         }

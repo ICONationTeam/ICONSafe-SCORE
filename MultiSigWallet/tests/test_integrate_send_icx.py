@@ -48,6 +48,8 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to token score
         result = self.msw_transfer_icx(self._irc2_address, 10 * ICX_FACTOR)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
         txuid = self.get_transaction_created_uid(result)
 
         # check token score icx (should be 0)
@@ -92,6 +94,9 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to user
         result = self.msw_transfer_icx(self._user.get_address(), 10 * ICX_FACTOR)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid = self.get_transaction_created_uid(result)
 
         # check user ICX balance

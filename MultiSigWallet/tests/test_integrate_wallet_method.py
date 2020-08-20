@@ -74,6 +74,9 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         # success case: add wallet user successfully
         result = self.add_wallet_owner(self._user.get_address(), "new_owner")
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
@@ -109,6 +112,10 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         # success case: replace owner successfully(owner3 -> user)
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.replace_wallet_owner(owner3_uid, self._user.get_address(), "user")
+
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
@@ -154,6 +161,10 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         # success case: replace owner by operator again
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.replace_wallet_owner(owner3_uid, self._operator.get_address(), "operator again")
+
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
@@ -195,6 +206,10 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         # success case: remove wallet owner successfully(remove owner3)
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.remove_wallet_owner(owner3_uid)
+
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid_created = self.get_transaction_created_uid(result)
 
         # confirm transaction

@@ -53,6 +53,9 @@ class TestIntegrateSendToken(MultiSigWalletTests):
 
         # make transaction which send 500 token to user
         result = self.msw_transfer_irc2(self._irc2_address, self._user.get_address(), 500)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
         txuid = self.get_transaction_created_uid(result)
 
         # check confirmation count(should be 1)

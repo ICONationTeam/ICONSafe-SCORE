@@ -28,6 +28,8 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
     def test_confirm_transaction_validate_wallet_owner(self):
         # submit transaction
         result = self.set_wallet_owners_required(2)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check confirmation count(should be 1)
         executed_transaction = self.get_executed_transactions_count()
@@ -52,6 +54,8 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         # success case: confirm transaction with valid owner(_owner2)
         valid_owner = self._owner2
         result = self.confirm_transaction(txuid, from_=valid_owner, success=True)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check wallet_owners who has confirmed transaction(should be owner1, owner2)
         transaction = self.get_transaction(txuid)

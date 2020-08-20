@@ -74,13 +74,12 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         # success case: add wallet user successfully
         result = self.add_wallet_owner(self._user.get_address(), "new_owner")
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
         self.confirm_transaction(txuid, from_=self._owner2)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check wallet owners(user should be added)
         owners = self.get_wallet_owners()
@@ -113,13 +112,11 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.replace_wallet_owner(owner3_uid, self._user.get_address(), "user")
 
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
-
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
         self.confirm_transaction(txuid, from_=self._owner2)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check the wallet owner list(should be owner1, owner2, user)
         # check wallet owners
@@ -158,12 +155,9 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
     def test_replace_wallet_owner_3(self):
         self.set_wallet_owners_required(2)
 
-        # success case: replace owner by operator again
+        # failure case: replace owner by operator
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.replace_wallet_owner(owner3_uid, self._operator.get_address(), "operator again")
-
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         txuid = self.get_transaction_created_uid(result)
 
@@ -207,15 +201,13 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.remove_wallet_owner(owner3_uid)
 
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
-
         txuid_created = self.get_transaction_created_uid(result)
 
         # confirm transaction
         result = self.confirm_transaction(txuid_created, from_=self._owner2)
-        txuid_executed = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid_created)['state'])
 
+        txuid_executed = self.get_transaction_execution_success_uid(result)
         self.assertEqual(txuid_created, txuid_executed)
 
         # check the wallet owner list (should be owner1, owner2)

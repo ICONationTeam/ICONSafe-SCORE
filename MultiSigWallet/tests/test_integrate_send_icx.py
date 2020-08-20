@@ -48,8 +48,6 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to token score
         result = self.msw_transfer_icx(self._irc2_address, 10 * ICX_FACTOR)
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
         txuid = self.get_transaction_created_uid(result)
 
         # check token score icx (should be 0)
@@ -58,6 +56,7 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # confirm transaction
         self.confirm_transaction(txuid, from_=self._owner2)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check getConfirmationCount(should be 2)
         transaction = self.get_transaction(txuid)
@@ -74,6 +73,7 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
         # failure case: when confirming to already executed transaction,
         # transaction shouldn't be executed again.
         self.confirm_transaction(txuid, from_=self._owner3, success=False)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check the token score address' icx
         balance = get_icx_balance(super(), str(self._irc2_address), self.icon_service)
@@ -94,9 +94,6 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to user
         result = self.msw_transfer_icx(self._user.get_address(), 10 * ICX_FACTOR)
-        txuid = self.get_transaction_execution_success_uid(result)
-        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
-
         txuid = self.get_transaction_created_uid(result)
 
         # check user ICX balance
@@ -105,6 +102,7 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # confirm transaction
         self.confirm_transaction(txuid, from_=self._owner2)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # check getConfirmationCount(should be 2)
         transaction = self.get_transaction(txuid)

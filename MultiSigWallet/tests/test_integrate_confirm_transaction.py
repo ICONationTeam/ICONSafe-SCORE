@@ -34,14 +34,14 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         self.assertEqual(1, executed_transaction)
 
         # check wallet_owner who has confirmed transaction
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
         transaction = self.get_transaction(txuid)
         owner_uid = self.get_wallet_owner_uid(self._operator.get_address())
         self.assertEqual(owner_uid, transaction["confirmations"][0])
 
         # submit transaction 2
         result = self.set_wallet_owners_required(3)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # failure case: confirm transaction with invalid owner
         result = self.confirm_transaction(txuid, from_=self._attacker, success=False)
@@ -69,7 +69,7 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
     def test_confirm_transaction_validate_confirms(self):
         # submit transaction
         result = self.set_wallet_owners_required(2)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
         transaction = self.get_transaction(txuid)
 
         # check confirmation count(should be 1)
@@ -108,20 +108,20 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         # failure case: if confirmed transaction is not valid(e.g. invalid method name)
         # should be failed but confirm count should be 2.
         result = self.set_wallet_owners_required(3, method_name="invalid_method_name", success=True)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
         # Fail should occur
-        result = self.confirm_transaction(txuid, from_=self._owner2, success=False)
-        expected_revert_massage = f"Method not found"
-        actual_revert_massage = result['failure']['message']
-        self.assertTrue(expected_revert_massage in actual_revert_massage)
-
-        # check wallet_owners who has confirmed transaction(should be owner1 only, owner2 cannot confirm)
-        transaction = self.get_transaction(txuid)
-        self.assertEqual(len(transaction['confirmations']), 1)
-        owner_uid = self.get_wallet_owner_uid(self._operator.get_address())
-        self.assertEqual(owner_uid, transaction["confirmations"][0])
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"MethodNotFoundException('Method not found: MultiSigWallet.invalid_method_name')")
 
         # check if transaction is not executed
-        self.assertEqual("WAITING", transaction['state'])
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
+
+        # check wallet_owners who has confirmed transaction (should be owner1 and owner2)
+        transaction = self.get_transaction(txuid)
+        self.assertEqual(len(transaction['confirmations']), 2)
+        operator_uid = self.get_wallet_owner_uid(self._operator.get_address())
+        owner2_uid = self.get_wallet_owner_uid(self._owner2.get_address())
+        self.assertEqual([operator_uid, owner2_uid], transaction["confirmations"])

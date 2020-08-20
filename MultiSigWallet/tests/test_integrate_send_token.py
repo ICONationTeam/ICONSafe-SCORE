@@ -53,7 +53,7 @@ class TestIntegrateSendToken(MultiSigWalletTests):
 
         # make transaction which send 500 token to user
         result = self.msw_transfer_irc2(self._irc2_address, self._user.get_address(), 500)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # check confirmation count(should be 1)
         transaction = self.get_transaction(txuid)
@@ -91,17 +91,19 @@ class TestIntegrateSendToken(MultiSigWalletTests):
 
         # make transaction which send 500 token to user (call revert_check method)
         result = self.msw_revert_check(self._irc2_address, self._user.get_address(), 500)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        self.confirm_transaction(txuid, from_=self._owner2, success=False)
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('revert test', 0)")
 
-        # check confirmation count(should be 1)
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
+
+        # check confirmation count(should be 2)
         transaction = self.get_transaction(txuid)
-        self.assertEqual(len(transaction['confirmations']), 1)
-
-        # check transaction executed count(should be False)
-        self.assertEqual("WAITING", transaction["state"])
+        self.assertEqual(len(transaction['confirmations']), 2)
 
         # check user's token amount(should be 0)
         balance = self.balance_token(self._user.get_address())

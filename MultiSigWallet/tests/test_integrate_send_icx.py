@@ -32,10 +32,12 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
     def test_send_icx_negative_value(self):
         # failure case: submit transaction which send -10 icx to token score
-        result = self.msw_transfer_icx(self._irc2_address, -10 * ICX_FACTOR, success=False)
-        expected_revert_massage = 'Amount is less than zero'
-        actual_revert_massage = result['failure']['message']
-        self.assertEqual(expected_revert_massage, actual_revert_massage)
+        result = self.msw_transfer_icx(self._irc2_address, -10 * ICX_FACTOR)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"InvalidParamsException('Amount is less than zero')")
+
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
     def test_send_icx_to_score(self):
         self.set_wallet_owners_required(2)
@@ -46,7 +48,7 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to token score
         result = self.msw_transfer_icx(self._irc2_address, 10 * ICX_FACTOR)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # check token score icx (should be 0)
         balance = get_icx_balance(super(), str(self._irc2_address), self.icon_service)
@@ -90,7 +92,7 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
 
         # submit transaction which send 10 icx to user
         result = self.msw_transfer_icx(self._user.get_address(), 10 * ICX_FACTOR)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # check user ICX balance
         balance = get_icx_balance(super(), str(self._user.get_address()), self.icon_service)

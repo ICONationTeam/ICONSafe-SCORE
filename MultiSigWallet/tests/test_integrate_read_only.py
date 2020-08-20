@@ -32,7 +32,7 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
 
         # waiting transaction
         result = self.set_wallet_owners_required(3)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         # success case: search exist transaction
         transaction = self.get_transaction(txuid)
@@ -107,7 +107,7 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
         result = self.set_wallet_owners_required(2)
 
         # getConfirmationCount should be 1
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
         transaction = self.get_transaction(txuid)
         self.assertEqual(len(transaction['confirmations']), 1)
 
@@ -135,7 +135,7 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
 
         # success case: after add owner, try get total number of wallet owner (should be 4)
         result = self.add_wallet_owner(self._user.get_address(), "new_owner", success=True)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
         self.confirm_transaction(txuid, from_=self._owner2, success=True)
 
         count = self.get_wallet_owners_count()
@@ -144,7 +144,7 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
         # success case: after remove owner 3, try get total number of wallet owner (should be 3)
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
         result = self.remove_wallet_owner(owner3_uid)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
         self.confirm_transaction(txuid, from_=self._owner2, success=True)
 
         count = self.get_wallet_owners_count()

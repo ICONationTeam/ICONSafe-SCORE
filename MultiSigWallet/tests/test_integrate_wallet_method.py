@@ -73,11 +73,11 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.set_wallet_owners_required(2)
 
         # success case: add wallet user successfully
-        result = self.add_wallet_owner(self._user.get_address(), "new_owner", success=True)
-        txuid = self.get_transaction_uid_created(result)
+        result = self.add_wallet_owner(self._user.get_address(), "new_owner")
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        self.confirm_transaction(txuid, from_=self._owner2, success=True)
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check wallet owners(user should be added)
         owners = self.get_wallet_owners()
@@ -85,556 +85,198 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         expected_owners = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address(), self._user.get_address()]
         self.assertEqual(expected_owners, owners)
 
-    """
         # failure case: add already exist wallet owner
-        add_wallet_owner_params = [
-            {"name": "_walletOwner",
-             "type": "Address",
-             "value": str(self._operator)}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "addWalletOwner",
-                            "_params": json.dumps(add_wallet_owner_params),
-                            "_description": "add already exist wallet owner"}
-
-        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                              to_=self._score_address,
-                                                              method="submit_transaction",
-                                                              params=submit_tx_params,
-                                                              icon_service=self.icon_service
-                                                              )
-        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
-
-        self.assertEqual(result['status'], int(True))
+        result = self.add_wallet_owner(self._operator.get_address(), "operator again")
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {"transaction_uid": "0x01"}
-        add_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._owner2,
-                                                              to_=self._score_address,
-                                                              method="confirm_transaction",
-                                                              params=confirm_tx_params,
-                                                              icon_service=self.icon_service
-                                                              )
-        prev_block, tx_results = self._make_and_req_block([add_wallet_owner_submit_tx])
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('WalletAddressAlreadyExist({self._operator.get_address()})', 0)")
 
-        self.assertEqual(int(True), result['status'])
-
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[1].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
         # check wallet owners
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner3), str(self._user)]
-        self.assertEqual(response, expected_owners)
+        owners = self.get_wallet_owners()
+        owners = list(map(lambda x: x['address'], owners))
+        expected_owners = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address(), self._user.get_address()]
+        self.assertEqual(expected_owners, owners)
 
     def test_replace_wallet_owner(self):
+        self.set_wallet_owners_required(2)
+
         # success case: replace owner successfully(owner3 -> user)
-        replace_wallet_owner_params = [
-            {'name': '_walletOwner',
-             'type': 'Address',
-             'value': str(self._owner3)},
-            {'name': '_newWalletOwner',
-             'type': 'Address',
-             'value': str(self._user)}
-        ]
-        replace_tx_params = {'destination': str(self._score_address),
-                             'method_name': 'replaceWalletOwner',
-                             'params': json.dumps(replace_wallet_owner_params),
-                             'description': 'replace wallet owner'}
-
-        replace_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
-                                                           to_=self._score_address,
-                                                           method="submit_transaction",
-                                                           params=replace_tx_params,
-                                                           icon_service=self.icon_service
-                                                           )
-        prev_block, tx_results = self._make_and_req_block([replace_wallet_owner_tx])
-
-        self.assertEqual(int(True), result['status'])
+        owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
+        result = self.replace_wallet_owner(owner3_uid, self._user.get_address(), "user")
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(True, result['status'])
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check the wallet owner list(should be owner1, owner2, user)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
-        self.assertEqual(expected_owners, response)
+        # check wallet owners
+        owners = self.get_wallet_owners()
+
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address(), self._user.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
+
+        owners_names = list(map(lambda x: x['name'], owners))
+        expected_owners_name = ["operator", "owner2", "user"]
+        self.assertEqual(expected_owners_name, owners_names)
+
+    def test_replace_wallet_owner_2(self):
+        self.set_wallet_owners_required(2)
 
         # failure case: try replace wallet owner who is not listed
-        replace_wallet_owner_params = [
-            {'name': '_walletOwner',
-             'type': 'Address',
-             'value': str(self._owner5)},
-            {'name': '_newWalletOwner',
-             'type': 'Address',
-             'value': str(self._owner6)}
-        ]
-        replace_tx_params = {'destination': str(self._score_address),
-                             'method_name': 'replaceWalletOwner',
-                             'params': json.dumps(replace_wallet_owner_params),
-                             'description': 'replace wallet owner'}
+        unknown_user_uid = 123
+        result = self.replace_wallet_owner(unknown_user_uid, self._user.get_address(), "user")
+        txuid = self.get_transaction_created_uid(result)
 
-        replace_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
-                                                           to_=self._score_address,
-                                                           method="submit_transaction",
-                                                           params=replace_tx_params,
-                                                           icon_service=self.icon_service
-                                                           )
-        prev_block, tx_results = self._make_and_req_block([replace_wallet_owner_tx])
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"""IconScoreException("LinkedNodeNotFound('WALLET_OWNERS_MANAGER_wallet_owners_UID_LINKED_LIST_DB', {unknown_user_uid})", 0)""")
 
-        self.assertEqual(int(True), result['status'])
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
-        # confirm transaction
-        valid_owner = self._owner2
-        confirm_tx_params = {'transaction_uid': '0x01'}
-        result = transaction_call_success(super(), from_=valid_owner,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        # check if the wallet owner list is not changed(should be owner1, owner2, owner3)
+        owners = self.get_wallet_owners()
 
-        self.assertEqual(True, result['status'])
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
 
-        # check if the wallet owner list is not changed(should be owner1, owner2, user)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
-        self.assertEqual(expected_owners, response)
+    def test_replace_wallet_owner_3(self):
+        self.set_wallet_owners_required(2)
 
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[1].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
-
-        # failure case: new wallet owner is already listed
-        replace_wallet_owner_params = [
-            {'name': '_walletOwner',
-             'type': 'Address',
-             'value': str(self._operator)},
-            {'name': '_newWalletOwner',
-             'type': 'Address',
-             'value': str(self._user)}
-        ]
-        replace_tx_params = {'destination': str(self._score_address),
-                             'method_name': 'replaceWalletOwner',
-                             'params': json.dumps(replace_wallet_owner_params),
-                             'description': 'replace wallet owner'}
-
-        replace_wallet_owner_tx = transaction_call_success(super(), from_=self._operator,
-                                                           to_=self._score_address,
-                                                           method="submit_transaction",
-                                                           params=replace_tx_params,
-                                                           icon_service=self.icon_service
-                                                           )
-        prev_block, tx_results = self._make_and_req_block([replace_wallet_owner_tx])
-
-        self.assertEqual(int(True), result['status'])
+        # success case: replace owner by operator again
+        owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
+        result = self.replace_wallet_owner(owner3_uid, self._operator.get_address(), "operator again")
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        valid_owner = self._owner2
-        confirm_tx_params = {'transaction_uid': '0x02'}
-        result = transaction_call_success(super(), from_=valid_owner,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('WalletAddressAlreadyExist({self._operator.get_address()})', 0)")
 
-        self.assertEqual(True, result['status'])
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
-        # check if the wallet owner list is not changed(should be owner1, owner2, user)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._user)]
-        self.assertEqual(expected_owners, response)
-
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[1].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
+        # check if the wallet owner list is not changed(should be owner1, owner2, owner3)
+        owners = self.get_wallet_owners()
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
 
     def test_remove_wallet_owner(self):
+        self.set_wallet_owners_required(2)
+
         # failure case: try to remove wallet owner who is not listed
-        remove_wallet_owner_params = [
-            {"name": "_walletOwner",
-             "type": "Address",
-             "value": str(self._user)}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "removeWalletOwner",
-                            "_params": json.dumps(remove_wallet_owner_params),
-                            "_description": "remove wallet user in wallet"}
-
-        remove_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                 to_=self._score_address,
-                                                                 method="submit_transaction",
-                                                                 params=submit_tx_params,
-                                                                 icon_service=self.icon_service
-                                                                 )
-        prev_block, tx_results = self._make_and_req_block([remove_wallet_owner_submit_tx])
-
-        self.assertEqual(result['status'], int(True))
+        unknown_user_uid = 123
+        result = self.remove_wallet_owner(unknown_user_uid)
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"""IconScoreException("LinkedNodeNotFound('WALLET_OWNERS_MANAGER_wallet_owners_UID_LINKED_LIST_DB', {unknown_user_uid})", 0)""")
 
-        self.assertEqual(True, result['status'])
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[1].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
-
-        # check the wallet owner list(should be owner1, owner2, owner3)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2), str(self._owner3)]
-        self.assertEqual(expected_owners, response)
+        # check if the wallet owner list is not changed(should be owner1, owner2, owner3)
+        owners = self.get_wallet_owners()
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
 
         # success case: remove wallet owner successfully(remove owner3)
-        remove_wallet_owner_params = [
-            {"name": "_walletOwner",
-             "type": "Address",
-             "value": str(self._owner3)}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "removeWalletOwner",
-                            "_params": json.dumps(remove_wallet_owner_params),
-                            "_description": "remove wallet owner3 in wallet"}
-
-        remove_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                 to_=self._score_address,
-                                                                 method="submit_transaction",
-                                                                 params=submit_tx_params,
-                                                                 icon_service=self.icon_service
-                                                                 )
-        prev_block, tx_results = self._make_and_req_block([remove_wallet_owner_submit_tx])
-
-        self.assertEqual(True, result['status'])
+        owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
+        result = self.remove_wallet_owner(owner3_uid)
+        txuid_created = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x01'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        result = self.confirm_transaction(txuid_created, from_=self._owner2)
+        txuid_executed = self.get_transaction_execution_success_uid(result)
 
-        self.assertEqual(True, result['status'])
+        self.assertEqual(txuid_created, txuid_executed)
 
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getTransactionsExecuted",
-                "params": {"transaction_uid": "1"}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(True, response)
-
-        # check execution success
-        expected_execution_event_log = "Execution(int)"
-        actual_execution_event_log = tx_results[0].event_logs[2].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
-
-        # check the wallet owner list(should be owner1, owner2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2)]
-        self.assertEqual(expected_owners, response)
+        # check the wallet owner list (should be owner1, owner2)
+        owners = self.get_wallet_owners()
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
 
         # check the wallet owner3 is not wallet owner
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "checkIfWalletOwner",
-                "params": {"_walletOwner": str(self._owner3)}
-            }
-        }
-        expected_owners = False
-        response = self._query(query_request)
-        self.assertEqual(expected_owners, response)
+        self.assertEqual(False, self.is_wallet_owner(self._owner3.get_address()))
 
         # failure case: try to remove wallet owner when owner's count is same as requirement
         # (should not be removed)
-        remove_wallet_owner_params = [
-            {"name": "_walletOwner",
-             "type": "Address",
-             "value": str(self._owner2)}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "removeWalletOwner",
-                            "_params": json.dumps(remove_wallet_owner_params),
-                            "_description": "remove wallet owner2 in wallet"}
-
-        remove_wallet_owner_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                 to_=self._score_address,
-                                                                 method="submit_transaction",
-                                                                 params=submit_tx_params,
-                                                                 icon_service=self.icon_service
-                                                                 )
-        prev_block, tx_results = self._make_and_req_block([remove_wallet_owner_submit_tx])
-
-        self.assertEqual(True, result['status'])
+        owner2_uid = self.get_wallet_owner_uid(self._owner2.get_address())
+        result = self.remove_wallet_owner(owner2_uid)
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x02'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
+        # InvalidWalletRequirements(1, 2)
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(1, 2)', 0)")
 
-        self.assertEqual(True, result['status'])
-
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getTransactionsExecuted",
-                "params": {"transaction_uid": "2"}
-            }
-        }
-        response = self._query(query_request)
-        self.assertEqual(False, response)
-
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[1].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
         # check the wallet owner list(should be owner1, owner2)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getWalletOwners",
-                "params": {"_offset": "0", "_count": "10"}
-            }
-        }
-        response = self._query(query_request)
-        expected_owners = [str(self._operator), str(self._owner2)]
-        self.assertEqual(expected_owners, response)
+        owners = self.get_wallet_owners()
+        owners_address = list(map(lambda x: x['address'], owners))
+        expected_owners_address = [self._operator.get_address(), self._owner2.get_address()]
+        self.assertEqual(expected_owners_address, owners_address)
 
     def test_change_requirement(self):
-        # success case: change requirement 2 to 1
-        change_requirement_params = [
-            {"name": "_required",
-             "type": "int",
-             "value": 1}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "set_wallet_owners_required",
-                            "_params": json.dumps(change_requirement_params),
-                            "_description": "change requirement 2 to 1"}
+        self.set_wallet_owners_required(2)
 
-        change_requirement_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                to_=self._score_address,
-                                                                method="submit_transaction",
-                                                                params=submit_tx_params,
-                                                                icon_service=self.icon_service
-                                                                )
-        prev_block, tx_results = self._make_and_req_block([change_requirement_submit_tx])
-
-        self.assertEqual(result['status'], int(True))
+        result = self.set_wallet_owners_required(1)
+        txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
-        confirm_tx_params = {'transaction_uid': '0x00'}
-        result = transaction_call_success(super(), from_=self._owner2,
-                                          to_=self._score_address,
-                                          method='confirm_transaction',
-                                          params=confirm_tx_params,
-                                          icon_service=self.icon_service
-                                          )
-        prev_block, tx_results = self._make_and_req_block([confirm_tx])
-
-        self.assertEqual(True, result['status'])
+        self.confirm_transaction(txuid, from_=self._owner2)
 
         # check the requirement(should be 1)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getRequirement",
-                "params": {}
-            }
-        }
-        expected_requirement = 1
-        actual_requiremnt = self._query(query_request)
-        self.assertEqual(expected_requirement, actual_requiremnt)
+        self.assertEqual(1, self.get_wallet_owners_required())
+
+    def test_change_requirement_2(self):
+        self.set_wallet_owners_required(2)
 
         # failure case: change requirement to 0
-        change_requirement_params = [
-            {"name": "_required",
-             "type": "int",
-             "value": 0}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "set_wallet_owners_required",
-                            "_params": json.dumps(change_requirement_params),
-                            "_description": "change requirement 1 to 0"}
+        result = self.set_wallet_owners_required(0)
+        txuid = self.get_transaction_created_uid(result)
 
-        change_requirement_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                to_=self._score_address,
-                                                                method="submit_transaction",
-                                                                params=submit_tx_params,
-                                                                icon_service=self.icon_service
-                                                                )
-        prev_block, tx_results = self._make_and_req_block([change_requirement_submit_tx])
+        # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(3, 0)', 0)")
 
-        self.assertEqual(result['status'], int(True))
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[2].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
+        # check the requirement(should be 2)
+        self.assertEqual(2, self.get_wallet_owners_required())
 
-        # check the requirement(should be 1)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getRequirement",
-                "params": {}
-            }
-        }
-        expected_requirement = 1
-        actual_requiremnt = self._query(query_request)
-        self.assertEqual(expected_requirement, actual_requiremnt)
+    def test_change_requirement_3(self):
+        self.set_wallet_owners_required(2)
 
         # failure case: try to set requirement more than owners
-        change_requirement_params = [
-            {"name": "_required",
-             "type": "int",
-             "value": 4}
-        ]
-        submit_tx_params = {"_destination": str(self._score_address),
-                            "_method": "set_wallet_owners_required",
-                            "_params": json.dumps(change_requirement_params),
-                            "_description": "change requirement 1 to 4"}
+        result = self.set_wallet_owners_required(4)
+        txuid = self.get_transaction_created_uid(result)
 
-        change_requirement_submit_tx = transaction_call_success(super(), from_=self._operator,
-                                                                to_=self._score_address,
-                                                                method="submit_transaction",
-                                                                params=submit_tx_params,
-                                                                icon_service=self.icon_service
-                                                                )
-        prev_block, tx_results = self._make_and_req_block([change_requirement_submit_tx])
+        # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._owner2)
+        txuid, error = self.get_transaction_execution_failure_uid(result)
+        self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(3, 4)', 0)")
 
-        self.assertEqual(result['status'], int(True))
+        # check if transaction is not executed
+        self.assertEqual("FAILED", self.get_transaction(txuid)['state'])
 
-        # check execution failure
-        expected_execution_event_log = "ExecutionFailure(int)"
-        actual_execution_event_log = tx_results[0].event_logs[2].indexed[0]
-        self.assertEqual(expected_execution_event_log, actual_execution_event_log)
-
-        # check the requirement(should be 1)
-        query_request = {
-            "version": self._version,
-            "from": self._admin,
-            "to": self._score_address,
-            "dataType": "call",
-            "data": {
-                "method": "getRequirement",
-                "params": {}
-            }
-        }
-        expected_requirement = 1
-        actual_requiremnt = self._query(query_request)
-        self.assertEqual(expected_requirement, actual_requiremnt)
-"""
+        # check the requirement(should be 2)
+        self.assertEqual(2, self.get_wallet_owners_required())

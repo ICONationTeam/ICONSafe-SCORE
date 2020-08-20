@@ -34,11 +34,11 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             },
                 {
                 "address": self._owner2.get_address(),
-                "name": "user1"
+                "name": "owner2"
             },
                 {
                 "address": self._owner3.get_address(),
-                "name": "user2"
+                "name": "owner3"
             }],
             "owners_required": "0x1"
         }
@@ -51,10 +51,8 @@ class MultiSigWalletTests(IconIntegrateTestBase):
         self._operator_icx_balance = get_icx_balance(super(), address=self._operator.get_address(), icon_service=self.icon_service)
         self._owner2_icx_balance = get_icx_balance(super(), address=self._owner2.get_address(), icon_service=self.icon_service)
         self._irc2_address = self._deploy_irc2(self.IRC2_PROJECT)['scoreAddress']
-        self._irc2_address_2 = self._deploy_irc2(self.IRC2_PROJECT)['scoreAddress']
 
         irc2_transfer(super(), from_=self._operator, token=self._irc2_address, to_=self._owner2.get_address(), value=0x1000000, icon_service=self.icon_service)
-        irc2_transfer(super(), from_=self._operator, token=self._irc2_address_2, to_=self._owner2.get_address(), value=0x1000000, icon_service=self.icon_service)
         self._operator_irc2_balance = get_irc2_balance(super(), address=self._operator.get_address(), token=self._irc2_address, icon_service=self.icon_service)
         self._owner2_irc2_balance = get_irc2_balance(super(), address=self._owner2.get_address(), token=self._irc2_address, icon_service=self.icon_service)
 
@@ -136,6 +134,18 @@ class MultiSigWalletTests(IconIntegrateTestBase):
                 icon_service=self.icon_service
             ), 0
         )
+
+    def is_wallet_owner(self, address: Address) -> bool:
+        return int(
+            icx_call(
+                super(),
+                from_=self._operator.get_address(),
+                to_=self._score_address,
+                method="is_wallet_owner",
+                params={"address": address},
+                icon_service=self.icon_service
+            ), 0
+        ) != 0
 
     def get_waiting_transactions_count(self) -> int:
         return int(
@@ -264,10 +274,20 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             success
         )
 
-    def get_transaction_uid_created(self, tx) -> int:
+    def get_transaction_created_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionCreated(int)':
                 return int(eventlog['indexed'][1], 0)
+
+    def get_transaction_execution_success_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionExecutionSuccess(int)':
+                return int(eventlog['indexed'][1], 0)
+
+    def get_transaction_execution_failure_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionExecutionFailure(int,str)':
+                return int(eventlog['indexed'][1], 0), eventlog['data'][0]
 
     def submit_transaction(self, from_, params, success):
         return self._do_call(from_, 'submit_transaction', params, success)
@@ -294,6 +314,20 @@ class MultiSigWalletTests(IconIntegrateTestBase):
                   'method_name': method_name,
                   'params': json.dumps(params),
                   'description': f'Remove owner : {wallet_owner_uid}'}
+
+        return self.submit_transaction(from_, params, success)
+
+    def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str, method_name: str = "replace_wallet_owner", from_=None, success=True):
+        params = [
+            {'name': 'old_wallet_owner_uid', 'type': 'int', 'value': str(old_wallet_owner_uid)},
+            {'name': 'new_address', 'type': 'Address', 'value': str(new_address)},
+            {'name': 'new_name', 'type': 'str', 'value': str(new_name)}
+        ]
+
+        params = {'destination': str(self._score_address),
+                  'method_name': method_name,
+                  'params': json.dumps(params),
+                  'description': f'Replace owner : {old_wallet_owner_uid} to {new_address} ({new_name})'}
 
         return self.submit_transaction(from_, params, success)
 

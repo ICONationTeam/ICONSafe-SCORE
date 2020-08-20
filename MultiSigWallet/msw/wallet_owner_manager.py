@@ -128,7 +128,7 @@ class WalletOwnersManager:
         self._check_requirements(len(self._wallet_owners), self._wallet_owners_required.get())
         self._check_address_doesnt_exist(new_address)
         # --- OK from here ---
-        new_wallet_owner_uid = WalletOwnerFactory(self.db).create(address, new_name)
+        new_wallet_owner_uid = WalletOwnerFactory(self.db).create(new_address, new_name)
         self._remove_wallet_owner(old_wallet_owner_uid)
         self._add_wallet_owner(new_address, new_wallet_owner_uid)
 

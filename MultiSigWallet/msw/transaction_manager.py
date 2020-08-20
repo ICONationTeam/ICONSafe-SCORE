@@ -148,12 +148,19 @@ class TransactionManager:
 
         if len(transaction._confirmations) >= self._wallet_owners_required.get():
             # Enough confirmations for the current transaction, execute it
-            self._external_call(transaction)
-            # Move the transaction from the waiting to the executed txs
+
+            # Move the transaction from the waiting transactions
             self._waiting_transactions.remove(transaction_uid)
             self._executed_transactions.append(transaction_uid)
-            transaction._state.set(TransactionState.EXECUTED)
-            self.TransactionExecutionSuccess(transaction._uid)
+
+            try:
+                self._external_call(transaction)
+                # Call success
+                transaction._state.set(TransactionState.EXECUTED)
+                self.TransactionExecutionSuccess(transaction._uid)
+            except BaseException as e:
+                transaction._state.set(TransactionState.FAILED)
+                self.TransactionExecutionFailure(transaction._uid, repr(e))
 
     @external
     @catch_exception

@@ -26,9 +26,10 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         super().setUp()
 
     def test_submit_transaction_validate_params_format(self):
-
         # success case: valid params format
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        txuid = self.get_transaction_execution_success_uid(result)
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
         # failure case: when type and value's actual type is not match, should be revert.
         not_match_type_params = [
@@ -38,9 +39,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         ]
 
         result = self.set_wallet_owners_required(params=not_match_type_params, success=False)
-        expected_revert_massage = "Cannot convert 521 from type bool"
-        actual_revert_massage = result['failure']['message']
-        self.assertEqual(expected_revert_massage, actual_revert_massage)
+        self.assertEqual("IconScoreException('Cannot convert 521 from type bool')", result['failure']['message'])
 
         # failure case: when input unsupported type as params' type
         unsupported_type_params = [
@@ -49,16 +48,16 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
              'value': "{'test':'test'}"}
         ]
         result = self.set_wallet_owners_required(params=unsupported_type_params, success=False)
-        expected_revert_massage = "dict is not supported type (only dict_keys(['int', 'str', 'bool', 'Address', 'bytes']) are supported)"
+        expected_revert_massage = """IconScoreException("dict is not supported type (only dict_keys(['int', 'str', 'bool', 'Address', 'bytes']) are supported)")"""
         actual_revert_massage = result['failure']['message']
         self.assertEqual(expected_revert_massage, actual_revert_massage)
 
         # failure case: invalid json format
         invalid_json_format_params = "{'test': }"
         result = self.set_wallet_owners_required(params=invalid_json_format_params, success=False)
-        expected_revert_massage = "JSONDecodeError"
+        expected_revert_massage = "JSONDecodeError('Expecting property name enclosed in double quotes: line 1 column 2 (char 1)')"
         actual_revert_massage = result['failure']['message']
-        self.assertTrue(expected_revert_massage in actual_revert_massage)
+        self.assertEqual(expected_revert_massage, actual_revert_massage)
 
     def test_submit_transaction_check_wallet_owner(self):
         # failure case: not included wallet owner
@@ -69,7 +68,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
 
     def test_submit_transaction_check_result_format(self):
         result = self.set_wallet_owners_required(2)
-        txuid = self.get_transaction_uid_created(result)
+        txuid = self.get_transaction_created_uid(result)
 
         actual_result = self.get_transaction(txuid)
         expected_result = {

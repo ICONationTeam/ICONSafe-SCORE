@@ -59,6 +59,7 @@ class TransactionState:
     WAITING = 1
     EXECUTED = 2
     CANCELLED = 3
+    FAILED = 4
 
 
 class Transaction:

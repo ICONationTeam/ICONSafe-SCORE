@@ -54,12 +54,12 @@ class MultiSigWallet(IconScoreBase,
         self._wallet_owners_required.set(owners_required)
 
         for owner in owners:
-            address, name = owner['address'], owner['name']
+            address = Address.from_string(owner['address'])
             self._check_address_doesnt_exist(address)
 
         # --- OK from here ---
         for owner in owners:
-            address, name = owner['address'], owner['name']
+            address, name = Address.from_string(owner['address']), owner['name']
             wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
             self._add_wallet_owner(address, wallet_owner_uid)
 

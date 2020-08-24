@@ -18,7 +18,7 @@ from iconservice import *
 from iconservice.base.exception import InvalidParamsException
 
 from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
-from MultiSigWallet.msw.type_converter import ScoreTypeConverter
+from MultiSigWallet.type_converter import ScoreTypeConverter
 from MultiSigWallet.tests import create_address, create_tx_hash, create_block_hash
 
 # transaction's parameter accept json format so support string, int, bool, null, array as a type

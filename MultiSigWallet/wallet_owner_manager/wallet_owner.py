@@ -15,43 +15,10 @@
 # limitations under the License.
 
 from iconservice import *
-from ..scorelib.id_factory import *
 
 
 class SenderNotMultisigOwnerError(Exception):
     pass
-
-
-class WalletOwnerFactory(IdFactory):
-
-    _NAME = 'WALLET_OWNER_FACTORY'
-
-    # ================================================
-    #  Initialization
-    # ================================================
-    def __init__(self, db: IconScoreDatabase):
-        name = WalletOwnerFactory._NAME
-        super().__init__(name, db)
-        self._name = name
-        self._db = db
-
-    def create(self,
-               address: Address,
-               name: str) -> int:
-
-        wallet_owner_uid = self.get_uid()
-
-        owner = WalletOwner(wallet_owner_uid, self._db)
-
-        owner._address.set(address)
-        owner._name.set(name)
-
-        return wallet_owner_uid
-
-
-class WalletOwnerDescription(TypedDict):
-    address: str
-    name: str
 
 
 class WalletOwner:
@@ -69,7 +36,7 @@ class WalletOwner:
         self._db = db
 
     # ================================================
-    #  Public methods
+    #  Internal methods
     # ================================================
     def serialize(self) -> dict:
         return {

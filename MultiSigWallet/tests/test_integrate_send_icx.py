@@ -25,11 +25,6 @@ class TestIntegrateSendIcx(MultiSigWalletTests):
     def setUp(self):
         super().setUp()
 
-    def deposit_icx_to_multisig_score(self, value: int):
-        icx_transfer_call(super(), self._operator, self._score_address, value, self.icon_service)
-        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
-        self.assertEqual(value, balance)
-
     def test_send_icx_negative_value(self):
         # failure case: submit transaction which send -10 icx to token score
         result = self.msw_transfer_icx(self._irc2_address, -10 * ICX_FACTOR)

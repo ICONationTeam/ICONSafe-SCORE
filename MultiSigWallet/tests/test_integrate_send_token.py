@@ -25,17 +25,6 @@ class TestIntegrateSendToken(MultiSigWalletTests):
     def setUp(self):
         super().setUp()
 
-    def send_token(self, value, to):
-        return irc2_transfer(super(),
-                             from_=self._operator,
-                             token=str(self._irc2_address),
-                             to_=to,
-                             value=value,
-                             icon_service=self.icon_service)
-
-    def balance_token(self, address: Address):
-        return get_irc2_balance(super(), str(address), str(self._irc2_address), icon_service=self.icon_service)
-
     def test_send_token(self):
         self.set_wallet_owners_required(2)
 

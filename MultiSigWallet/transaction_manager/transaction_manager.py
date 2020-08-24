@@ -15,18 +15,13 @@
 # limitations under the License.
 
 from iconservice import *
-from ..scorelib.auth import *
-from ..scorelib.exception import *
-from ..scorelib.linked_list import *
-from .type_converter import *
-from .wallet_owner import *
+
+from ..scorelib import *
+from ..type_converter import *
+from ..wallet_owner_manager import *
+
 from .transaction import *
-
-
-class TransactionParam(TypedDict):
-    name: str
-    type: str
-    value: str
+from .transaction_factory import *
 
 
 class TransactionManager:
@@ -78,36 +73,45 @@ class TransactionManager:
     # ================================================
     #  Checks
     # ================================================
-    def _check_params_format_convertible(self, params: List[TransactionParam]):
-        for param in params:
-            ScoreTypeConverter.convert(param["type"], param["value"])
 
     # ================================================
     #  Internal methods
     # ================================================
-    def _external_call(self, transaction: Transaction) -> None:
-        method_name = transaction._method_name.get()
+    def handle_incoming_transaction(self, token: Address, source: Address, amount: int) -> None:
 
-        if method_name == "":
-            method_name = None
+        transaction_uid = TransactionFactory.create(
+            self.db,
+            TransactionType.INCOMING,
+            self.tx.hash,
+            self.now(),
+            token, source, amount)
 
-        params = {}
-        if transaction._params.get() != "":
-            for param in json_loads(transaction._params.get()):
-                params[param["name"]] = ScoreTypeConverter.convert(param["type"], param["value"])
+        self._all_transactions.append(transaction_uid)
+        self.TransactionCreated(transaction_uid)
 
-        destination = transaction._destination.get()
-        amount = transaction._amount.get()
+        self.update_balance_history_manager(transaction_uid)
 
-        if destination.is_contract and method_name != None:
-            self.call(addr_to=destination,
-                      func_name=method_name,
-                      kw_dict=params,
-                      amount=amount)
-        else:
-            self.icx.transfer(destination, amount)
+    # ================================================
+    #  Private methods
+    # ================================================
+    def _external_call(self, transaction: OutgoingTransaction) -> None:
 
-        self.update_balance_history_manager()
+        # Handle all sub transactions
+        for sub_transaction_uid in transaction._sub_transactions:
+            sub_transaction = SubOutgoingTransaction(sub_transaction_uid, self.db)
+
+            method_name = sub_transaction._method_name.get() or None
+            params = sub_transaction.convert_params()
+            destination = sub_transaction._destination.get()
+            amount = sub_transaction._amount.get()
+
+            if destination.is_contract and method_name != None:
+                self.call(addr_to=destination,
+                          func_name=method_name,
+                          kw_dict=params,
+                          amount=amount)
+            else:
+                self.icx.transfer(destination, amount)
 
     # ================================================
     #  External methods
@@ -115,34 +119,20 @@ class TransactionManager:
     @external
     @catch_exception
     @only_multisig_owner
-    def submit_transaction(self,
-                           destination: Address,
-                           method_name: str = "",
-                           params: str = "",
-                           amount: int = 0,
-                           description: str = "") -> None:
+    def submit_transaction(self, sub_transactions: str) -> None:
 
-        # --- Checks ---
-        if params:
-            self._check_params_format_convertible(json_loads(params))
-
-        if not destination.is_contract and (method_name or params):
-            raise IconScoreException("Cannot set a method name or params to a EOA transfer transaction")
-
-        # --- OK from here ---
         transaction_uid = TransactionFactory.create(
             self.db,
             TransactionType.OUTGOING,
-            destination=destination,
-            method_name=method_name,
-            params=params,
-            amount=amount,
-            description=description)
+            self.tx.hash,
+            self.now(),
+            sub_transactions)
 
         self._waiting_transactions.append(transaction_uid)
         self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
+        # Try to confirm it right after submission
         self.confirm_transaction(transaction_uid)
 
     @external
@@ -170,11 +160,12 @@ class TransactionManager:
             try:
                 self._external_call(transaction)
                 # Call success
+                self.update_balance_history_manager(transaction_uid)
                 transaction._state.set(OutgoingTransactionState.EXECUTED)
-                self.TransactionExecutionSuccess(transaction._uid)
+                self.TransactionExecutionSuccess(transaction_uid)
             except BaseException as e:
                 transaction._state.set(OutgoingTransactionState.FAILED)
-                self.TransactionExecutionFailure(transaction._uid, repr(e))
+                self.TransactionExecutionFailure(transaction_uid, repr(e))
 
     @external
     @catch_exception
@@ -203,31 +194,42 @@ class TransactionManager:
     @external(readonly=True)
     @catch_exception
     def get_transaction(self, transaction_uid: int) -> dict:
-        transaction = OutgoingTransaction(transaction_uid, self.db)
-        transaction._state.check_exists()
-        return transaction.serialize()
+        return self.serialize_transaction(transaction_uid)
+
+    def serialize_transaction(self, transaction_uid: int) -> dict:
+        transaction = Transaction(transaction_uid, self.db)
+        transaction_type = transaction._type.get()
+
+        if transaction_type == TransactionType.OUTGOING:
+            return OutgoingTransaction(transaction_uid, self.db).serialize()
+        elif transaction_type == TransactionType.INCOMING:
+            return IncomingTransaction(transaction_uid, self.db).serialize()
+        else:
+            raise InvalidTransactionType(transaction._type.get())
 
     @external(readonly=True)
     @catch_exception
     def get_waiting_transactions(self, offset: int = 0) -> list:
         return [
-            OutgoingTransaction(transaction_uid, self.db).serialize()
+            self.serialize_transaction(transaction_uid)
             for transaction_uid in self._waiting_transactions.select(offset)
         ]
 
     @external(readonly=True)
     @catch_exception
     def get_all_transactions(self, offset: int = 0) -> list:
-        return [
-            OutgoingTransaction(transaction_uid, self.db).serialize()
+        a = [
+            self.serialize_transaction(transaction_uid)
             for transaction_uid in self._all_transactions.select(offset)
         ]
+        Logger.warning(f'all = {a}')
+        return a
 
     @external(readonly=True)
     @catch_exception
     def get_executed_transactions(self, offset: int = 0) -> list:
         return [
-            OutgoingTransaction(transaction_uid, self.db).serialize()
+            self.serialize_transaction(transaction_uid)
             for transaction_uid in self._executed_transactions.select(offset)
         ]
 

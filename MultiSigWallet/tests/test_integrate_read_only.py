@@ -38,8 +38,9 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
         transaction = self.get_transaction(txuid)
 
         self.assertEqual("WAITING", transaction["state"])
-        self.assertEqual(str(self._score_address), transaction["destination"])
-        self.assertEqual("set_wallet_owners_required", transaction["method_name"])
+        self.assertEqual(1, len(transaction["sub_transactions"]))
+        self.assertEqual(str(self._score_address), transaction["sub_transactions"][0]["destination"])
+        self.assertEqual("set_wallet_owners_required", transaction["sub_transactions"][0]["method_name"])
 
         # failure case: try to search not exist transaction(should raise an exception)
         self.assertRaises(IconScoreException, self.get_transaction, 404)
@@ -58,8 +59,8 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
 
         for transaction in waiting_txs:
             self.assertEqual("WAITING", transaction["state"])
-            self.assertEqual(str(self._score_address), transaction["destination"])
-            self.assertEqual("set_wallet_owners_required", transaction["method_name"])
+            self.assertEqual(str(self._score_address), transaction["sub_transactions"][0]["destination"])
+            self.assertEqual("set_wallet_owners_required", transaction["sub_transactions"][0]["method_name"])
 
         # success case: get executed transaction list
         executed_txs = self.get_executed_transactions()
@@ -67,8 +68,8 @@ class TestIntegrateReadOnly(MultiSigWalletTests):
 
         transaction = executed_txs[0]
         self.assertEqual("EXECUTED", transaction["state"])
-        self.assertEqual(str(self._score_address), transaction["destination"])
-        self.assertEqual("set_wallet_owners_required", transaction["method_name"])
+        self.assertEqual(str(self._score_address), transaction["sub_transactions"][0]["destination"])
+        self.assertEqual("set_wallet_owners_required", transaction["sub_transactions"][0]["method_name"])
 
     def test_get_wallet_owners(self):
         owners_wallets = [str(create_address()) for x in range(0, 50)]

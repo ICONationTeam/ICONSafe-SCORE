@@ -71,13 +71,18 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         actual_result = self.get_transaction(txuid)
+
         expected_result = {
             "uid": txuid,
-            "destination": f"{self._score_address}",
-            "method_name": "set_wallet_owners_required",
-            "params": '[{"name": "owners_required", "type": "int", "value": "2"}]',
-            "amount": 0,
-            "description": "change requirements to 2",
+            'sub_transactions': [
+                {
+                    "destination": f"{self._score_address}",
+                    "method_name": "set_wallet_owners_required",
+                    "params": '[{"name": "owners_required", "type": "int", "value": "2"}]',
+                    "amount": 0,
+                    "description": "change requirements to 2"
+                }
+            ],
             "confirmations": [
                 self.get_wallet_owner_uid(self._operator.get_address())
             ],

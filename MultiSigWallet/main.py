@@ -15,12 +15,13 @@
 # limitations under the License.
 
 from iconservice import *
-from .scorelib.maintenance import *
-from .scorelib.version import *
-from .msw.wallet_owner_manager import *
-from .msw.transaction_manager import *
-from .msw.balance_history_manager import *
+
+from .scorelib import *
 from .consts import *
+
+from .wallet_owner_manager import *
+from .transaction_manager import *
+from .balance_history_manager import *
 
 
 class MultiSigWallet(IconScoreBase,
@@ -69,10 +70,10 @@ class MultiSigWallet(IconScoreBase,
     @check_maintenance
     @payable
     def fallback(self):
-        self.update_balance_history_manager()
+        self.handle_incoming_transaction(ICX_TOKEN_ADDRESS, self.msg.sender, self.msg.value)
 
     @catch_exception
     @check_maintenance
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        self.update_balance_history_manager()
+        self.handle_incoming_transaction(self.msg.sender, _from, _value)

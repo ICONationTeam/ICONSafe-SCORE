@@ -15,10 +15,11 @@
 # limitations under the License.
 
 from iconservice import *
-from ..scorelib.linked_list import *
-from ..scorelib.auth import *
-from ..scorelib.exception import *
+
+from ..scorelib import *
+
 from .wallet_owner import *
+from .wallet_owner_factory import *
 
 
 class InvalidWalletRequirements(Exception):
@@ -31,6 +32,11 @@ class WalletOwnerDoesntExist(Exception):
 
 class WalletAddressAlreadyExist(Exception):
     pass
+
+
+class WalletOwnerDescription(TypedDict):
+    address: str
+    name: str
 
 
 class WalletOwnersManager:
@@ -112,7 +118,7 @@ class WalletOwnersManager:
         # --- OK from here ---
         for owner in owners:
             address, name = Address.from_string(owner['address']), owner['name']
-            wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
+            wallet_owner_uid = WalletOwnerFactory.create(self.db, address, name)
             self._add_wallet_owner(address, wallet_owner_uid)
 
     # ================================================
@@ -126,7 +132,7 @@ class WalletOwnersManager:
         WalletOwnersManager._check_requirements(len(self._wallet_owners) + 1, self._wallet_owners_required.get())
         self._check_address_doesnt_exist(address)
         # --- OK from here ---
-        wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
+        wallet_owner_uid = WalletOwnerFactory.create(self.db, address, name)
         self._add_wallet_owner(address, wallet_owner_uid)
 
     @catch_exception
@@ -147,7 +153,7 @@ class WalletOwnersManager:
         WalletOwnersManager._check_requirements(len(self._wallet_owners), self._wallet_owners_required.get())
         self._check_address_doesnt_exist(new_address)
         # --- OK from here ---
-        new_wallet_owner_uid = WalletOwnerFactory(self.db).create(new_address, new_name)
+        new_wallet_owner_uid = WalletOwnerFactory.create(self.db, new_address, new_name)
         self._remove_wallet_owner(old_wallet_owner_uid)
         self._add_wallet_owner(new_address, new_wallet_owner_uid)
 
@@ -167,7 +173,7 @@ class WalletOwnersManager:
     @external(readonly=True)
     def get_wallet_owners(self, offset: int = 0) -> list:
         return [
-            WalletOwner(wallet_owner_uid, self.db).serialize()
+            self.get_wallet_owner(wallet_owner_uid)
             for wallet_owner_uid in self._wallet_owners.select(offset)
         ]
 

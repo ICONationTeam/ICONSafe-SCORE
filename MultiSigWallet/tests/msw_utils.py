@@ -188,6 +188,16 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             icon_service=self.icon_service
         )
 
+    def get_token_balance_history(self, token: Address, offset: int = 0) -> list:
+        return icx_call(
+            super(),
+            from_=self._operator.get_address(),
+            to_=self._score_address,
+            method="get_token_balance_history",
+            params={"token": str(token), "offset": offset},
+            icon_service=self.icon_service
+        )
+
     def get_transaction(self, transaction_uid: int) -> dict:
         """
         {
@@ -240,24 +250,6 @@ class MultiSigWalletTests(IconIntegrateTestBase):
         self.assertEqual(int(success), result['status'])
         return result
 
-    def set_wallet_owners_required(self, value: int = 3, method_name: str = "set_wallet_owners_required", params=None, from_=None, success=True):
-        if not params:
-            params = [
-                {'name': 'owners_required',
-                 'type': 'int',
-                 'value': str(value)}
-            ]
-
-        if not isinstance(params, str):
-            params = json.dumps(params)
-
-        params = {'destination': str(self._score_address),
-                  'method_name': method_name,
-                  'params': params,
-                  'description': 'change requirements to 2'}
-
-        return self._do_call(from_, 'submit_transaction', params, success)
-
     def confirm_transaction(self, transaction_uid: int, from_=None, success=True):
         return self._do_call(
             from_,
@@ -294,8 +286,45 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             if eventlog['indexed'][0] == 'TransactionExecutionFailure(int,str)':
                 return int(eventlog['indexed'][1], 0), eventlog['data'][0]
 
-    def submit_transaction(self, from_, params, success):
-        return self._do_call(from_, 'submit_transaction', params, success)
+    def submit_transaction(self, from_, params, success=True):
+        return self._do_call(from_, 'submit_transaction', {'sub_transactions': json.dumps(params)}, success)
+
+    def _create_submit_transaction_params(self, params):
+        return {
+            "destination": "",
+            "method_name": "",
+            "params": "",
+            "amount": "0",
+            "description": "",
+            **params
+        }
+
+    def set_wallet_owners_required(self, value: int = 3, method_name: str = "set_wallet_owners_required", params=None, from_=None, success=True):
+        if not params:
+            params = [
+                {'name': 'owners_required',
+                 'type': 'int',
+                 'value': str(value)}
+            ]
+
+        if not isinstance(params, str):
+            params = json.dumps(params)
+
+        params = self._create_submit_transaction_params(
+            {'destination': str(self._score_address),
+             'method_name': method_name,
+             'params': params,
+             'description': 'change requirements to 2'})
+
+        return self.submit_transaction(from_, [params], success)
+
+    def add_balance_tracker(self, token: Address, method_name: str = "add_balance_tracker", params=None, from_=None, success=True):
+        return self._do_call(
+            from_,
+            method_name,
+            {'token': str(token)},
+            success
+        )
 
     def add_wallet_owner(self, address: Address, name: str, method_name: str = "add_wallet_owner", from_=None, success=True):
         params = [
@@ -303,24 +332,26 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             {'name': 'name', 'type': 'str', 'value': name}
         ]
 
-        params = {'destination': str(self._score_address),
-                  'method_name': method_name,
-                  'params': json.dumps(params),
-                  'description': f'Add new owner : {address}'}
+        params = self._create_submit_transaction_params(
+            {'destination': str(self._score_address),
+             'method_name': method_name,
+             'params': json.dumps(params),
+             'description': f'Add new owner : {address}'})
 
-        return self.submit_transaction(from_, params, success)
+        return self.submit_transaction(from_, [params], success)
 
     def remove_wallet_owner(self, wallet_owner_uid: int, method_name: str = "remove_wallet_owner", from_=None, success=True):
         params = [
             {'name': 'wallet_owner_uid', 'type': 'int', 'value': str(wallet_owner_uid)},
         ]
 
-        params = {'destination': str(self._score_address),
-                  'method_name': method_name,
-                  'params': json.dumps(params),
-                  'description': f'Remove owner : {wallet_owner_uid}'}
+        params = self._create_submit_transaction_params(
+            {'destination': str(self._score_address),
+             'method_name': method_name,
+             'params': json.dumps(params),
+             'description': f'Remove owner : {wallet_owner_uid}'})
 
-        return self.submit_transaction(from_, params, success)
+        return self.submit_transaction(from_, [params], success)
 
     def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str, method_name: str = "replace_wallet_owner", from_=None, success=True):
         params = [
@@ -329,32 +360,38 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             {'name': 'new_name', 'type': 'str', 'value': str(new_name)}
         ]
 
-        params = {'destination': str(self._score_address),
-                  'method_name': method_name,
-                  'params': json.dumps(params),
-                  'description': f'Replace owner : {old_wallet_owner_uid} to {new_address} ({new_name})'}
+        params = self._create_submit_transaction_params(
+            {'destination': str(self._score_address),
+             'method_name': method_name,
+             'params': json.dumps(params),
+             'description': f'Replace owner : {old_wallet_owner_uid} to {new_address} ({new_name})'})
 
-        return self.submit_transaction(from_, params, success)
+        return self.submit_transaction(from_, [params], success)
 
     def msw_transfer_irc2(self, token: Address, destination: Address, amount: int, method_name: str = "transfer", from_=None, success=True):
+        params = self.msw_transfer_irc2_params(token, destination, amount, method_name)
+        return self.submit_transaction(from_, [params], success)
+
+    def msw_transfer_irc2_params(self, token: Address, destination: Address, amount: int, method_name: str = "transfer"):
         params = [
             {'name': '_to', 'type': 'Address', 'value': str(destination)},
             {'name': '_value', 'type': 'int', 'value': str(amount)}
         ]
 
-        params = {'destination': str(token),
-                  'method_name': method_name,
-                  'params': json.dumps(params),
-                  'description': f'Send {amount} IRC2 {(token)} to {destination}'}
-
-        return self.submit_transaction(from_, params, success)
+        return self._create_submit_transaction_params(
+            {'destination': str(token),
+             'method_name': method_name,
+             'params': json.dumps(params),
+             'description': f'Send {amount} IRC2 {(token)} to {destination}'})
 
     def msw_transfer_icx(self, destination: Address, amount: int, from_=None, success=True):
-        params = {'destination': str(destination),
-                  'description': f'Transfer {amount} ICX to {destination}',
-                  'amount': f'{hex(amount)}'}
+        params = self.msw_transfer_icx_params(destination, amount)
+        return self.submit_transaction(from_, [params], success)
 
-        return self.submit_transaction(from_, params, success)
+    def msw_transfer_icx_params(self, destination: Address, amount: int):
+        return self._create_submit_transaction_params({'destination': str(destination),
+                                                       'description': f'Transfer {amount} ICX to {destination}',
+                                                       'amount': f'{hex(amount)}'})
 
     def msw_revert_check(self, token: Address, destination: Address, amount: int, method_name: str = "revert_check", from_=None, success=True):
         params = [
@@ -362,9 +399,28 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             {'name': '_value', 'type': 'int', 'value': str(amount)}
         ]
 
-        params = {'destination': str(token),
-                  'method_name': method_name,
-                  'params': json.dumps(params),
-                  'description': f'Revert check'}
+        params = self._create_submit_transaction_params(
+            {'destination': str(token),
+             'method_name': method_name,
+             'params': json.dumps(params),
+             'description': f'Revert check'})
 
-        return self.submit_transaction(from_, params, success)
+        return self.submit_transaction(from_, [params], success)
+
+    def deposit_icx_to_multisig_score(self, value: int):
+        result = icx_transfer_call(super(), self._operator, self._score_address, value, self.icon_service)
+        balance = get_icx_balance(super(), str(self._score_address), self.icon_service)
+        self.assertEqual(value, balance)
+        return result
+
+    def send_token(self, value, to):
+        return irc2_transfer(
+            super(),
+            from_=self._operator,
+            token=str(self._irc2_address),
+            to_=to,
+            value=value,
+            icon_service=self.icon_service)
+
+    def balance_token(self, address: Address):
+        return get_irc2_balance(super(), str(address), str(self._irc2_address), icon_service=self.icon_service)

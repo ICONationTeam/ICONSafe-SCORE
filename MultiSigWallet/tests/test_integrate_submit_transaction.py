@@ -81,7 +81,8 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
             "confirmations": [
                 self.get_wallet_owner_uid(self._operator.get_address())
             ],
-            "state": "EXECUTED"
+            "state": "EXECUTED",
+            "type": "OUTGOING"
         }
 
         self.assertEqual(expected_result, actual_result)

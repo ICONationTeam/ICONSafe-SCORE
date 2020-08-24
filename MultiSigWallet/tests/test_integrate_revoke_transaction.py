@@ -47,7 +47,7 @@ class TestIntegrateRevokeTransaction(MultiSigWalletTests):
 
         result = self.revoke_transaction(txuid, from_=self._owner2, success=False)
         owner2_uid = self.get_wallet_owner_uid(self._owner2.get_address())
-        expected_revert_massage = f"TransactionNotConfirmed('TRANSACTION_{txuid}', {owner2_uid})"
+        expected_revert_massage = f"OutgoingTransactionNotConfirmed('TRANSACTION_{txuid}', {owner2_uid})"
         self.assertEqual(expected_revert_massage, result['failure']['message'])
 
         # failure case: try revoke transaction which is already executed
@@ -56,5 +56,5 @@ class TestIntegrateRevokeTransaction(MultiSigWalletTests):
 
         # try to revoke confirmation of the transaction which is already executed
         result = self.revoke_transaction(txuid_executed, success=False)
-        expected_revert_massage = f"InvalidState('TRANSACTION_{txuid_executed}_state_STATEDB', 'EXECUTED', 'WAITING')"
+        expected_revert_massage = f"InvalidState('OUTGOING_TRANSACTION_{txuid_executed}_state_STATEDB', 'EXECUTED', 'WAITING')"
         self.assertEqual(expected_revert_massage, result['failure']['message'])

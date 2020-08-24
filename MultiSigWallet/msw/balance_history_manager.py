@@ -20,8 +20,10 @@ from ..scorelib.maintenance import *
 from ..scorelib.exception import *
 from ..scorelib.iterable_dict import *
 from ..scorelib.linked_list import *
+from ..interfaces.irc2 import *
 from .consts import *
 from .balance_history import *
+from .wallet_owner import *
 
 
 class InvalidBalance(Exception):
@@ -36,11 +38,13 @@ class BalanceHistoryManager:
     #  Fields
     # ================================================
     def _token_balance_history(self, token: Address) -> UIDLinkedListDB:
+        """ List of balance history items for any token """
         return UIDLinkedListDB(f'{BalanceHistoryManager._NAME}_{str(token)}_balance_history', self.db)
 
     @property
-    def _icx_balance_history(self) -> UIDLinkedListDB:
-        return self._token_balance_history(ICX_TOKEN_ADDRESS)
+    def _tracked_balance_history(self) -> SetDB:
+        """ List of tokens that are actively tracked for the balance history """
+        return SetDB(f'{BalanceHistoryManager._NAME}_tokens_tracked', self.db, value_type=Address)
 
     # ================================================
     #  Event Logs
@@ -54,35 +58,75 @@ class BalanceHistoryManager:
     # ================================================
 
     # ================================================
-    #  Internal methods
+    #  Private methods
     # ================================================
-    def update_icx_balance(self) -> None:
-        current_balance = self.icx.get_balance(self.address)
-
+    def _update_token_balance(self, token: Address, current_balance: int) -> None:
         # Check for update in the last balance history item
-        if len(self._icx_balance_history) > 0:
-            last_balance_history_uid = self._icx_balance_history.head_value()
+        token_balance_history = self._token_balance_history(token)
+
+        if len(token_balance_history) > 0:
+            last_balance_history_uid = token_balance_history.head_value()
             last_balance_history = BalanceHistory(last_balance_history_uid, self.db)
             if last_balance_history._balance.get() == current_balance:
                 # The last balance is the same, no need to update the balance history
                 return
 
-        balance_history_uid = BalanceHistoryFactory(self.db).create(ICX_TOKEN_ADDRESS, current_balance, self.tx.hash, self.now())
-        self._icx_balance_history.prepend(balance_history_uid)
+        balance_history_uid = BalanceHistoryFactory(self.db).create(token, current_balance, self.tx.hash, self.now())
+        token_balance_history.prepend(balance_history_uid)
         self.BalanceHistoryCreated(balance_history_uid)
+
+    def _update_icx_balance(self) -> None:
+        current_balance = self.icx.get_balance(self.address)
+        self._update_token_balance(ICX_TOKEN_ADDRESS, current_balance)
+
+    def _update_irc2_balance(self, token: Address) -> None:
+        irc2 = self.create_interface_score(token, IRC2Interface)
+        current_balance = irc2.balanceOf(self.address)
+        self._update_token_balance(token, current_balance)
+
+    # ================================================
+    #  Internal methods
+    # ================================================
+    def on_install_balance_history_manager(self):
+        # Track ICX balance by default
+        self._tracked_balance_history.add(ICX_TOKEN_ADDRESS)
+
+    def update_balance_history_manager(self):
+        for token in self._tracked_balance_history:
+            if token == ICX_TOKEN_ADDRESS:
+                self._update_icx_balance()
+            else:
+                self._update_irc2_balance(token)
 
     # ================================================
     #  External methods
     # ================================================
     @external(readonly=True)
     @catch_exception
-    def get_icx_balance_history(self, offset: int) -> dict:
+    def get_token_balance_history(self, token: Address, offset: int = 0) -> dict:
         return [
             BalanceHistory(balance_history_uid, self.db).serialize()
-            for balance_history_uid in self._icx_balance_history.select(offset)
+            for balance_history_uid in self._token_balance_history(token).select(offset)
         ]
 
     @external(readonly=True)
     @catch_exception
-    def get_balance_history_item(self, balance_history_uid: int) -> dict:
+    def get_balance_history(self, balance_history_uid: int) -> dict:
         return BalanceHistory(balance_history_uid, self.db).serialize()
+
+    @external(readonly=True)
+    @catch_exception
+    def get_balance_trackers(self, offset: int = 0) -> list:
+        return self._tracked_balance_history.select(offset)
+
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def add_balance_tracker(self, token: Address) -> None:
+        self._tracked_balance_history.add(token)
+
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def remove_balance_tracker(self, token: Address) -> None:
+        self._tracked_balance_history.remove(token)

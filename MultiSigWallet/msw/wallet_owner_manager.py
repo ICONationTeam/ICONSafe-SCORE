@@ -98,7 +98,25 @@ class WalletOwnersManager:
         self.WalletOwnerRemoval(wallet_owner_uid)
 
     # ================================================
-    #  Wallet methods
+    #  Internal methods
+    # ================================================
+    def on_install_wallet_owner_manager(self, owners: List[WalletOwnerDescription], owners_required: int):
+        # --- Checks ---
+        WalletOwnersManager._check_requirements(len(owners), owners_required)
+        self._wallet_owners_required.set(owners_required)
+
+        for owner in owners:
+            address = Address.from_string(owner['address'])
+            self._check_address_doesnt_exist(address)
+
+        # --- OK from here ---
+        for owner in owners:
+            address, name = Address.from_string(owner['address']), owner['name']
+            wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
+            self._add_wallet_owner(address, wallet_owner_uid)
+
+    # ================================================
+    #  Only Wallet External methods
     # ================================================
     @catch_exception
     @only_wallet

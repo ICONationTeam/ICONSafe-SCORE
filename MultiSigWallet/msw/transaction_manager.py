@@ -44,6 +44,10 @@ class TransactionManager:
     def _executed_transactions(self) -> UIDLinkedListDB:
         return UIDLinkedListDB(f'{TransactionManager._NAME}_executed_transactions', self.db)
 
+    @property
+    def _all_transactions(self) -> UIDLinkedListDB:
+        return UIDLinkedListDB(f'{TransactionManager._NAME}_all_transactions', self.db)
+
     # ================================================
     #  Event Logs
     # ================================================
@@ -57,6 +61,10 @@ class TransactionManager:
 
     @eventlog(indexed=2)
     def TransactionRevoked(self, transaction_uid: int, wallet_owner_uid: int):
+        pass
+
+    @eventlog(indexed=1)
+    def TransactionCancelled(self, transaction_uid: int):
         pass
 
     @eventlog(indexed=1)
@@ -99,7 +107,7 @@ class TransactionManager:
         else:
             self.icx.transfer(destination, amount)
 
-        self.update_icx_balance()
+        self.update_balance_history_manager()
 
     # ================================================
     #  External methods
@@ -122,14 +130,17 @@ class TransactionManager:
             raise IconScoreException("Cannot set a method name or params to a EOA transfer transaction")
 
         # --- OK from here ---
-        transaction_uid = TransactionFactory(self.db).create(
-            destination,
-            method_name,
-            params,
-            amount,
-            description)
+        transaction_uid = TransactionFactory.create(
+            self.db,
+            TransactionType.OUTGOING,
+            destination=destination,
+            method_name=method_name,
+            params=params,
+            amount=amount,
+            description=description)
 
         self._waiting_transactions.append(transaction_uid)
+        self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
         self.confirm_transaction(transaction_uid)
@@ -138,11 +149,12 @@ class TransactionManager:
     @catch_exception
     @only_multisig_owner
     def confirm_transaction(self, transaction_uid: int) -> None:
-        transaction = Transaction(transaction_uid, self.db)
+        transaction = OutgoingTransaction(transaction_uid, self.db)
         wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
 
         # --- Checks ---
-        transaction._state.check(TransactionState.WAITING)
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
 
         # --- OK from here ---
         transaction._confirmations.add(wallet_owner_uid)
@@ -158,21 +170,22 @@ class TransactionManager:
             try:
                 self._external_call(transaction)
                 # Call success
-                transaction._state.set(TransactionState.EXECUTED)
+                transaction._state.set(OutgoingTransactionState.EXECUTED)
                 self.TransactionExecutionSuccess(transaction._uid)
             except BaseException as e:
-                transaction._state.set(TransactionState.FAILED)
+                transaction._state.set(OutgoingTransactionState.FAILED)
                 self.TransactionExecutionFailure(transaction._uid, repr(e))
 
     @external
     @catch_exception
     @only_multisig_owner
     def revoke_transaction(self, transaction_uid: int) -> None:
-        transaction = Transaction(transaction_uid, self.db)
+        transaction = OutgoingTransaction(transaction_uid, self.db)
         wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
 
         # --- Checks ---
-        transaction._state.check(TransactionState.WAITING)
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
         transaction.check_has_confirmed(wallet_owner_uid)
 
         # --- OK from here ---
@@ -181,14 +194,16 @@ class TransactionManager:
 
         if len(transaction._confirmations) == 0:
             # None wants this transaction anymore, cancel it
-            transaction._state.set(TransactionState.CANCELLED)
+            transaction._state.set(OutgoingTransactionState.CANCELLED)
             # Remove it from active transactions
             self._waiting_transactions.remove(transaction_uid)
+            self._all_transactions.remove(transaction_uid)
+            self.TransactionCancelled(transaction_uid)
 
     @external(readonly=True)
     @catch_exception
     def get_transaction(self, transaction_uid: int) -> dict:
-        transaction = Transaction(transaction_uid, self.db)
+        transaction = OutgoingTransaction(transaction_uid, self.db)
         transaction._state.check_exists()
         return transaction.serialize()
 
@@ -196,15 +211,23 @@ class TransactionManager:
     @catch_exception
     def get_waiting_transactions(self, offset: int = 0) -> list:
         return [
-            Transaction(transaction_uid, self.db).serialize()
+            OutgoingTransaction(transaction_uid, self.db).serialize()
             for transaction_uid in self._waiting_transactions.select(offset)
+        ]
+
+    @external(readonly=True)
+    @catch_exception
+    def get_all_transactions(self, offset: int = 0) -> list:
+        return [
+            OutgoingTransaction(transaction_uid, self.db).serialize()
+            for transaction_uid in self._all_transactions.select(offset)
         ]
 
     @external(readonly=True)
     @catch_exception
     def get_executed_transactions(self, offset: int = 0) -> list:
         return [
-            Transaction(transaction_uid, self.db).serialize()
+            OutgoingTransaction(transaction_uid, self.db).serialize()
             for transaction_uid in self._executed_transactions.select(offset)
         ]
 
@@ -212,6 +235,11 @@ class TransactionManager:
     @catch_exception
     def get_waiting_transactions_count(self) -> int:
         return len(self._waiting_transactions)
+
+    @external(readonly=True)
+    @catch_exception
+    def get_all_transactions_count(self) -> int:
+        return len(self._all_transactions)
 
     @external(readonly=True)
     @catch_exception

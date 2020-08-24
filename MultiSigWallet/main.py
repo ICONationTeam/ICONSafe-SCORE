@@ -45,21 +45,10 @@ class MultiSigWallet(IconScoreBase,
 
     def on_install(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_install()
-        self._version_update(VERSION)
-
-        # --- Checks ---
-        WalletOwnersManager._check_requirements(len(owners), owners_required)
-        self._wallet_owners_required.set(owners_required)
-
-        for owner in owners:
-            address = Address.from_string(owner['address'])
-            self._check_address_doesnt_exist(address)
-
-        # --- OK from here ---
-        for owner in owners:
-            address, name = Address.from_string(owner['address']), owner['name']
-            wallet_owner_uid = WalletOwnerFactory(self.db).create(address, name)
-            self._add_wallet_owner(address, wallet_owner_uid)
+        self.on_install_version_manager(VERSION)
+        self.on_install_maintenance_manager(IconScoreMaintenanceStatus.DISABLED)
+        self.on_install_balance_history_manager()
+        self.on_install_wallet_owner_manager(owners, owners_required)
 
     def on_update(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_update()
@@ -67,7 +56,7 @@ class MultiSigWallet(IconScoreBase,
         # if self._is_less_than_target_version('1.0.0'):
         #     self._migrate_v1_0_0()
 
-        self._version_update(VERSION)
+        self.on_update_version_manager(VERSION)
 
     # ================================================
     #  External methods
@@ -80,10 +69,10 @@ class MultiSigWallet(IconScoreBase,
     @check_maintenance
     @payable
     def fallback(self):
-        self.update_icx_balance()
+        self.update_balance_history_manager()
 
     @catch_exception
     @check_maintenance
     @external
     def tokenFallback(self, _from: Address, _value: int, _data: bytes) -> None:
-        pass
+        self.update_balance_history_manager()

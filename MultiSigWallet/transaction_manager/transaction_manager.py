@@ -40,6 +40,10 @@ class TransactionManager:
         return UIDLinkedListDB(f'{TransactionManager._NAME}_executed_transactions', self.db)
 
     @property
+    def _rejected_transactions(self) -> UIDLinkedListDB:
+        return UIDLinkedListDB(f'{TransactionManager._NAME}_rejected_transactions', self.db)
+
+    @property
     def _all_transactions(self) -> UIDLinkedListDB:
         return UIDLinkedListDB(f'{TransactionManager._NAME}_all_transactions', self.db)
 
@@ -58,12 +62,20 @@ class TransactionManager:
     def TransactionRevoked(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
+    @eventlog(indexed=2)
+    def TransactionRejected(self, transaction_uid: int, wallet_owner_uid: int):
+        pass
+
     @eventlog(indexed=1)
     def TransactionCancelled(self, transaction_uid: int):
         pass
 
     @eventlog(indexed=1)
     def TransactionExecutionSuccess(self, transaction_uid: int):
+        pass
+
+    @eventlog(indexed=1)
+    def TransactionRejectionSuccess(self, transaction_uid: int):
         pass
 
     @eventlog(indexed=1)
@@ -95,6 +107,9 @@ class TransactionManager:
     #  Private methods
     # ================================================
     def _external_call(self, transaction: OutgoingTransaction) -> None:
+
+        # Get the execution time, even if the subtx fails
+        transaction._executed_timestamp.set(self.now())
 
         # Handle all sub transactions
         for sub_transaction_uid in transaction._sub_transactions:
@@ -170,6 +185,32 @@ class TransactionManager:
     @external
     @catch_exception
     @only_multisig_owner
+    def reject_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
+        wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
+
+        # --- Checks ---
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
+
+        # --- OK from here ---
+        transaction._rejections.add(wallet_owner_uid)
+        self.TransactionRejected(transaction_uid, wallet_owner_uid)
+
+        if len(transaction._rejections) >= self._wallet_owners_required.get():
+            # Enough confirmations for the current transaction, reject it
+
+            # Move the transaction from the waiting transactions
+            self._waiting_transactions.remove(transaction_uid)
+            self._rejected_transactions.append(transaction_uid)
+
+            # Call success
+            transaction._state.set(OutgoingTransactionState.REJECTED)
+            self.TransactionRejectionSuccess(transaction_uid)
+
+    @external
+    @catch_exception
+    @only_multisig_owner
     def revoke_transaction(self, transaction_uid: int) -> None:
         transaction = OutgoingTransaction(transaction_uid, self.db)
         wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
@@ -177,13 +218,17 @@ class TransactionManager:
         # --- Checks ---
         transaction._type.check(TransactionType.OUTGOING)
         transaction._state.check(OutgoingTransactionState.WAITING)
-        transaction.check_has_confirmed(wallet_owner_uid)
+        transaction.check_has_participated(wallet_owner_uid)
 
         # --- OK from here ---
-        transaction._confirmations.remove(wallet_owner_uid)
+        if transaction.has_confirmed(wallet_owner_uid):
+            transaction._confirmations.remove(wallet_owner_uid)
+        elif transaction.has_rejected(wallet_owner_uid):
+            transaction._rejections.remove(wallet_owner_uid)
+
         self.TransactionRevoked(transaction_uid, wallet_owner_uid)
 
-        if len(transaction._confirmations) == 0:
+        if len(transaction._confirmations) == 0 and len(transaction._rejections) == 0:
             # None wants this transaction anymore, cancel it
             transaction._state.set(OutgoingTransactionState.CANCELLED)
             # Remove it from active transactions
@@ -235,6 +280,14 @@ class TransactionManager:
 
     @external(readonly=True)
     @catch_exception
+    def get_rejected_transactions(self, offset: int = 0) -> list:
+        return [
+            self.serialize_transaction(transaction_uid)
+            for transaction_uid in self._rejected_transactions.select(offset)
+        ]
+
+    @external(readonly=True)
+    @catch_exception
     def get_waiting_transactions_count(self) -> int:
         return len(self._waiting_transactions)
 
@@ -247,3 +300,8 @@ class TransactionManager:
     @catch_exception
     def get_executed_transactions_count(self) -> int:
         return len(self._executed_transactions)
+
+    @external(readonly=True)
+    @catch_exception
+    def get_rejected_transactions_count(self) -> int:
+        return len(self._rejected_transactions)

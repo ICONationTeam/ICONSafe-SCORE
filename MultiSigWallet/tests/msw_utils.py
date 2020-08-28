@@ -258,6 +258,14 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             success
         )
 
+    def reject_transaction(self, transaction_uid: int, from_=None, success=True):
+        return self._do_call(
+            from_,
+            'reject_transaction',
+            {'transaction_uid': str(transaction_uid)},
+            success
+        )
+
     def revoke_transaction(self, transaction_uid: int, from_=None, success=True):
         return self._do_call(
             from_,
@@ -271,12 +279,22 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             if eventlog['indexed'][0] == 'TransactionCreated(int)':
                 return int(eventlog['indexed'][1], 0)
 
+    def get_transaction_rejected_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionRejected(int,int)':
+                return int(eventlog['indexed'][1], 0)
+
+    def get_transaction_rejection_success_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionRejectionSuccess(int)':
+                return int(eventlog['indexed'][1], 0)
+
     def get_transaction_execution_success_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionExecutionSuccess(int)':
                 return int(eventlog['indexed'][1], 0)
 
-    def get_transaction_revoke_uid(self, tx) -> int:
+    def get_transaction_revoked_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionRevoked(int,int)':
                 return int(eventlog['indexed'][1], 0)

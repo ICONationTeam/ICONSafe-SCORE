@@ -25,7 +25,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
     def setUp(self):
         super().setUp()
 
-    def test_submit_transaction_validate_params_format(self):
+    def test_multiple_sub_transactions(self):
         self.deposit_icx_to_multisig_score(10000)
         self.send_token(10000, self._score_address)
 

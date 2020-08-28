@@ -66,32 +66,6 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         actual_revert_massage = result['failure']['message']
         self.assertEqual(expected_revert_massage, actual_revert_massage)
 
-    def test_submit_transaction_check_result_format(self):
-        result = self.set_wallet_owners_required(2)
-        txuid = self.get_transaction_created_uid(result)
-
-        actual_result = self.get_transaction(txuid)
-
-        expected_result = {
-            "uid": txuid,
-            'sub_transactions': [
-                {
-                    "destination": f"{self._score_address}",
-                    "method_name": "set_wallet_owners_required",
-                    "params": '[{"name": "owners_required", "type": "int", "value": "2"}]',
-                    "amount": 0,
-                    "description": "change requirements to 2"
-                }
-            ],
-            "confirmations": [
-                self.get_wallet_owner_uid(self._operator.get_address())
-            ],
-            "state": "EXECUTED",
-            "type": "OUTGOING"
-        }
-
-        self.assertEqual(expected_result, actual_result)
-
     def test_submit_transaction_check_transaction_list(self):
         # success case: submit 4 transaction and one transaction will be failed
         # transaction total count should be 3

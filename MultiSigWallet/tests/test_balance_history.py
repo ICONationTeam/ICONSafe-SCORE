@@ -26,7 +26,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
     def setUp(self):
         super().setUp()
 
-    def test_submit_transaction_validate_params_format(self):
+    def test_balance_history(self):
         # Track the IRC2 token
         result = self.add_balance_tracker(self._irc2_address)
 
@@ -35,11 +35,11 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         result = self.send_token(10000, self._score_address)
 
         icx_balance_history = self.get_token_balance_history(ICX_TOKEN_ADDRESS)
-        self.assertEqual(len(icx_balance_history), 1)
+        self.assertEqual(len(icx_balance_history), 2)
         self.assertEqual(icx_balance_history[0]['balance'], 10000)
 
         irc2_balance_history = self.get_token_balance_history(self._irc2_address)
-        self.assertEqual(len(irc2_balance_history), 1)
+        self.assertEqual(len(irc2_balance_history), 2)
         self.assertEqual(irc2_balance_history[0]['balance'], 10000)
 
         # Transfer 3000 ICX and 1500 IRC2 to user
@@ -74,10 +74,10 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         # Check the balance history update
         icx_balance_history = self.get_token_balance_history(ICX_TOKEN_ADDRESS)
         print(json.dumps(icx_balance_history, indent=4))
-        self.assertEqual(len(icx_balance_history), 2)
+        self.assertEqual(len(icx_balance_history), 3)
         self.assertEqual(icx_balance_history[0]['balance'], 10000 - 3000)
 
         irc2_balance_history = self.get_token_balance_history(self._irc2_address)
         print(json.dumps(irc2_balance_history, indent=4))
-        self.assertEqual(len(irc2_balance_history), 2)
+        self.assertEqual(len(irc2_balance_history), 3)
         self.assertEqual(irc2_balance_history[0]['balance'], 10000 - 1500)

@@ -35,7 +35,7 @@ class Transaction:
     def __init__(self, uid: int, db: IconScoreDatabase):
         name = f"{Transaction._NAME}_{uid}"
         self._type = StateDB(f"{name}_type", db, value_type=TransactionType)
-        self._timestamp = VarDB(f"{name}_timestamp", db, value_type=int)
+        self._created_timestamp = VarDB(f"{name}_created_timestamp", db, value_type=int)
         self._txhash = VarDB(f"{name}_txhash", db, value_type=bytes)
         self._uid = uid
         self._name = name
@@ -43,7 +43,7 @@ class Transaction:
 
     def build(self, txtype: int, timestamp: int, txhash: bytes) -> None:
         self._type.set(txtype)
-        self._timestamp.set(timestamp)
+        self._created_timestamp.set(timestamp)
         self._txhash.set(txhash)
 
     # ================================================
@@ -54,5 +54,5 @@ class Transaction:
             "uid": self._uid,
             "type": self._type.get_name(),
             "txhash": f"0x{bytes.hex(self._txhash.get())}" if self._txhash.get() else "None",
-            "timestamp": self._timestamp.get()
+            "created_timestamp": self._created_timestamp.get()
         }

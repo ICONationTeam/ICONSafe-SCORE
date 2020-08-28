@@ -21,7 +21,7 @@ from .sub_outgoing_transaction import *
 from .transaction import *
 
 
-class OutgoingTransactionNotConfirmed(Exception):
+class OutgoingTransactionNotParticipated(Exception):
     pass
 
 
@@ -31,6 +31,7 @@ class OutgoingTransactionState:
     EXECUTED = 2
     CANCELLED = 3
     FAILED = 4
+    REJECTED = 5
 
 
 class OutgoingTransactionFactory:
@@ -73,17 +74,25 @@ class OutgoingTransaction(Transaction):
         super().__init__(uid, db)
         name = f"{OutgoingTransaction._NAME}_{uid}"
         self._confirmations = SetDB(f"{name}_confirmations", db, value_type=int)
+        self._rejections = SetDB(f"{name}_rejections", db, value_type=int)
         self._state = StateDB(f"{name}_state", db, value_type=OutgoingTransactionState)
         self._sub_transactions = ArrayDB(f"{name}_sub_transactions", db, value_type=int)
+        self._executed_timestamp = VarDB(f"{name}_executed_timestamp", db, value_type=int)
         self._db = db
 
     # ================================================
     #  Checks
     # ================================================
+    def check_has_participated(self, wallet_owner_uid: int) -> None:
+        if (not self.has_confirmed(wallet_owner_uid) and
+                not self.has_rejected(wallet_owner_uid)):
+            raise OutgoingTransactionNotParticipated(self._name, wallet_owner_uid)
 
-    def check_has_confirmed(self, wallet_owner_uid: int) -> None:
-        if not wallet_owner_uid in self._confirmations:
-            raise OutgoingTransactionNotConfirmed(self._name, wallet_owner_uid)
+    def has_confirmed(self, wallet_owner_uid: int) -> bool:
+        return wallet_owner_uid in self._confirmations
+
+    def has_rejected(self, wallet_owner_uid: int) -> bool:
+        return wallet_owner_uid in self._rejections
 
     # ================================================
     #  Internal methods
@@ -93,9 +102,11 @@ class OutgoingTransaction(Transaction):
         return {
             **result,
             "confirmations": list(self._confirmations),
+            "rejections": list(self._rejections),
             "state": self._state.get_name(),
             "sub_transactions": [
                 SubOutgoingTransaction(sub_transaction_uid, self._db).serialize()
                 for sub_transaction_uid in self._sub_transactions
-            ]
+            ],
+            "executed_timestamp": self._executed_timestamp.get(),
         }

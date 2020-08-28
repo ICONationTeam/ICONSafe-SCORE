@@ -279,6 +279,11 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             if eventlog['indexed'][0] == 'TransactionCreated(int)':
                 return int(eventlog['indexed'][1], 0)
 
+    def get_transaction_confirmed_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionConfirmed(int,int)':
+                return int(eventlog['indexed'][1], 0)
+
     def get_transaction_rejected_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionRejected(int,int)':
@@ -317,7 +322,7 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             **params
         }
 
-    def set_wallet_owners_required(self, value: int = 3, method_name: str = "set_wallet_owners_required", params=None, from_=None, success=True):
+    def set_wallet_owners_required(self, value: int = 3, params=None, from_=None, success=True):
         if not params:
             params = [
                 {'name': 'owners_required',
@@ -330,21 +335,21 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
         params = self._create_submit_transaction_params(
             {'destination': str(self._score_address),
-             'method_name': method_name,
+             'method_name': "set_wallet_owners_required",
              'params': params,
              'description': 'change requirements to 2'})
 
         return self.submit_transaction(from_, [params], success)
 
-    def add_balance_tracker(self, token: Address, method_name: str = "add_balance_tracker", params=None, from_=None, success=True):
+    def add_balance_tracker(self, token: Address, params=None, from_=None, success=True):
         return self._do_call(
             from_,
-            method_name,
+            "add_balance_tracker",
             {'token': str(token)},
             success
         )
 
-    def add_wallet_owner(self, address: Address, name: str, method_name: str = "add_wallet_owner", from_=None, success=True):
+    def add_wallet_owner(self, address: Address, name: str, from_=None, success=True):
         params = [
             {'name': 'address', 'type': 'Address', 'value': address},
             {'name': 'name', 'type': 'str', 'value': name}
@@ -352,26 +357,26 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
         params = self._create_submit_transaction_params(
             {'destination': str(self._score_address),
-             'method_name': method_name,
+             'method_name': "add_wallet_owner",
              'params': json.dumps(params),
              'description': f'Add new owner : {address}'})
 
         return self.submit_transaction(from_, [params], success)
 
-    def remove_wallet_owner(self, wallet_owner_uid: int, method_name: str = "remove_wallet_owner", from_=None, success=True):
+    def remove_wallet_owner(self, wallet_owner_uid: int, from_=None, success=True):
         params = [
             {'name': 'wallet_owner_uid', 'type': 'int', 'value': str(wallet_owner_uid)},
         ]
 
         params = self._create_submit_transaction_params(
             {'destination': str(self._score_address),
-             'method_name': method_name,
+             'method_name': "remove_wallet_owner",
              'params': json.dumps(params),
              'description': f'Remove owner : {wallet_owner_uid}'})
 
         return self.submit_transaction(from_, [params], success)
 
-    def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str, method_name: str = "replace_wallet_owner", from_=None, success=True):
+    def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str, from_=None, success=True):
         params = [
             {'name': 'old_wallet_owner_uid', 'type': 'int', 'value': str(old_wallet_owner_uid)},
             {'name': 'new_address', 'type': 'Address', 'value': str(new_address)},
@@ -380,17 +385,17 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
         params = self._create_submit_transaction_params(
             {'destination': str(self._score_address),
-             'method_name': method_name,
+             'method_name': "replace_wallet_owner",
              'params': json.dumps(params),
              'description': f'Replace owner : {old_wallet_owner_uid} to {new_address} ({new_name})'})
 
         return self.submit_transaction(from_, [params], success)
 
-    def msw_transfer_irc2(self, token: Address, destination: Address, amount: int, method_name: str = "transfer", from_=None, success=True):
-        params = self.msw_transfer_irc2_params(token, destination, amount, method_name)
+    def msw_transfer_irc2(self, token: Address, destination: Address, amount: int, from_=None, success=True):
+        params = self.msw_transfer_irc2_params(token, destination, amount)
         return self.submit_transaction(from_, [params], success)
 
-    def msw_transfer_irc2_params(self, token: Address, destination: Address, amount: int, method_name: str = "transfer"):
+    def msw_transfer_irc2_params(self, token: Address, destination: Address, amount: int):
         params = [
             {'name': '_to', 'type': 'Address', 'value': str(destination)},
             {'name': '_value', 'type': 'int', 'value': str(amount)}
@@ -398,7 +403,7 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
         return self._create_submit_transaction_params(
             {'destination': str(token),
-             'method_name': method_name,
+             'method_name': "transfer",
              'params': json.dumps(params),
              'description': f'Send {amount} IRC2 {(token)} to {destination}'})
 
@@ -411,7 +416,7 @@ class MultiSigWalletTests(IconIntegrateTestBase):
                                                        'description': f'Transfer {amount} ICX to {destination}',
                                                        'amount': f'{hex(amount)}'})
 
-    def msw_revert_check(self, token: Address, destination: Address, amount: int, method_name: str = "revert_check", from_=None, success=True):
+    def msw_revert_check(self, token: Address, destination: Address, amount: int, from_=None, success=True):
         params = [
             {'name': '_to', 'type': 'Address', 'value': str(destination)},
             {'name': '_value', 'type': 'int', 'value': str(amount)}
@@ -419,7 +424,7 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
         params = self._create_submit_transaction_params(
             {'destination': str(token),
-             'method_name': method_name,
+             'method_name': "revert_check",
              'params': json.dumps(params),
              'description': f'Revert check'})
 
@@ -442,3 +447,7 @@ class MultiSigWalletTests(IconIntegrateTestBase):
 
     def balance_token(self, address: Address):
         return get_irc2_balance(super(), str(address), str(self._irc2_address), icon_service=self.icon_service)
+
+    def confirm_transaction_created(self, tx):
+        txuid = self.get_transaction_created_uid(tx)
+        return self.confirm_transaction(txuid)

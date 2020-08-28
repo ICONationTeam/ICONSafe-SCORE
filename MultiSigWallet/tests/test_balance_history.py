@@ -44,6 +44,8 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
 
         # Transfer 3000 ICX and 1500 IRC2 to user
         result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
+
         txuid = self.get_transaction_execution_success_uid(result)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -58,6 +60,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
 
         result = self.submit_transaction(self._operator, sub_transactions)
         txuid = self.get_transaction_created_uid(result)
+        result = self.confirm_transaction(txuid, self._operator)
 
         result = self.confirm_transaction(txuid, self._owner2)
         txuid = self.get_transaction_execution_success_uid(result)
@@ -73,11 +76,9 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
 
         # Check the balance history update
         icx_balance_history = self.get_token_balance_history(ICX_TOKEN_ADDRESS)
-        print(json.dumps(icx_balance_history, indent=4))
         self.assertEqual(len(icx_balance_history), 3)
         self.assertEqual(icx_balance_history[0]['balance'], 10000 - 3000)
 
         irc2_balance_history = self.get_token_balance_history(self._irc2_address)
-        print(json.dumps(irc2_balance_history, indent=4))
         self.assertEqual(len(irc2_balance_history), 3)
         self.assertEqual(irc2_balance_history[0]['balance'], 10000 - 1500)

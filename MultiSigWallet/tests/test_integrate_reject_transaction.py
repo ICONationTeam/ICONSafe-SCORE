@@ -30,6 +30,8 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
     def test_reject_transaction_success(self):
         # success case: valid params format
         result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
+
         txuid = self.get_transaction_execution_success_uid(result)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -54,6 +56,8 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
     def test_reject_transaction_change_mind_success(self):
         # success case: valid params format
         result = self.set_wallet_owners_required(3)
+        result = self.confirm_transaction_created(result)
+
         txuid = self.get_transaction_execution_success_uid(result)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -63,6 +67,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         # submit transaction which send 10 icx to token score
         result = self.msw_transfer_icx(self._irc2_address, 10 * ICX_FACTOR)
         txuid = self.get_transaction_created_uid(result)
+        self.confirm_transaction(txuid, from_=self._operator)
 
         # Reject transaction
         result = self.reject_transaction(txuid, from_=self._owner2)

@@ -147,9 +147,6 @@ class TransactionManager:
         self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
-        # Try to confirm it right after submission
-        self.confirm_transaction(transaction_uid)
-
     @external
     @catch_exception
     @only_multisig_owner

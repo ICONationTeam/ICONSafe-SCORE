@@ -28,6 +28,7 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
     def test_confirm_transaction_validate_wallet_owner(self):
         # submit transaction
         result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
         txuid = self.get_transaction_execution_success_uid(result)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -36,7 +37,6 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         self.assertEqual(1, executed_transaction)
 
         # check wallet_owner who has confirmed transaction
-        txuid = self.get_transaction_created_uid(result)
         transaction = self.get_transaction(txuid)
         owner_uid = self.get_wallet_owner_uid(self._operator.get_address())
         self.assertEqual(owner_uid, transaction["confirmations"][0])
@@ -44,6 +44,7 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         # submit transaction 2
         result = self.set_wallet_owners_required(3)
         txuid = self.get_transaction_created_uid(result)
+        result = self.confirm_transaction(txuid, from_=self._operator)
 
         # failure case: confirm transaction with invalid owner
         result = self.confirm_transaction(txuid, from_=self._attacker, success=False)
@@ -72,7 +73,9 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
     def test_confirm_transaction_validate_confirms(self):
         # submit transaction
         result = self.set_wallet_owners_required(2)
-        txuid = self.get_transaction_created_uid(result)
+        result = self.confirm_transaction_created(result)
+
+        txuid = self.get_transaction_confirmed_uid(result)
         transaction = self.get_transaction(txuid)
 
         # check confirmation count(should be 1)
@@ -95,7 +98,8 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         self.assertEqual(owner_uid, transaction["confirmations"][0])
 
     def test_confirm_transaction_validate_transaction(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: confirming transaction on not existing transaction id
         unknown_txid = 123
@@ -106,18 +110,20 @@ class TestIntegrateConfirmTransaction(MultiSigWalletTests):
         self.assertEqual(expected_revert_massage, actual_revert_massage)
 
     def test_confirm_transaction_execute_transaction_failure(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
-        # failure case: if confirmed transaction is not valid(e.g. invalid method name)
+        # failure case: if confirmed transaction is not valid (e.g. invalid balance)
         # should be failed but confirm count should be 2.
-        result = self.set_wallet_owners_required(3, method_name="invalid_method_name", success=True)
+        result = self.msw_transfer_icx("hx0000000000000000000000000000000000000000", 10 * 10**100)
         txuid = self.get_transaction_created_uid(result)
+        result = self.confirm_transaction(txuid, from_=self._operator)
 
         # confirm transaction
         # Fail should occur
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
-        self.assertEqual(error, f"MethodNotFoundException('Method not found: MultiSigWallet.invalid_method_name')")
+        self.assertEqual(error, f"OutOfBalanceException('Out of balance')")
 
         # check if transaction is not executed
         self.assertEqual("FAILED", self.get_transaction(txuid)['state'])

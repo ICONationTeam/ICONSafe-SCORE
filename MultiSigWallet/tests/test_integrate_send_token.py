@@ -26,7 +26,8 @@ class TestIntegrateSendToken(MultiSigWalletTests):
         super().setUp()
 
     def test_send_token(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # success case: send 500 token to user
         # deposit owner1's 1000 token to multisig wallet score
@@ -47,11 +48,12 @@ class TestIntegrateSendToken(MultiSigWalletTests):
         # Check transaction state
         self.assertEqual("WAITING", self.get_transaction(txuid)['state'])
 
-        # check confirmation count(should be 1)
+        # check confirmation count(should be 0)
         transaction = self.get_transaction(txuid)
-        self.assertEqual(len(transaction['confirmations']), 1)
+        self.assertEqual(len(transaction['confirmations']), 0)
 
         # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
         self.confirm_transaction(txuid, from_=self._owner2)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -68,7 +70,8 @@ class TestIntegrateSendToken(MultiSigWalletTests):
         self.assertEqual(500, balance)
 
     def test_send_token_revert(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: raise revert while sending 500 token to user.(500 token should not be sended)
         # deposit owner1's 1000 token to multisig wallet score
@@ -87,6 +90,7 @@ class TestIntegrateSendToken(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('revert test', 0)")

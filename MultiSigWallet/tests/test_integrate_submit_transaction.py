@@ -28,6 +28,7 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
     def test_submit_transaction_validate_params_format(self):
         # success case: valid params format
         result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
         txuid = self.get_transaction_execution_success_uid(result)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -86,6 +87,14 @@ class TestIntegrateSubmitTransaction(MultiSigWalletTests):
         self.assertEqual(True, tx_results[1]['status'])
         self.assertEqual(False, tx_results[2]['status'])
         self.assertEqual(True, tx_results[3]['status'])
+
+        # check executed transaction count (should be 0, no confirmation yet)
+        executed_transaction = self.get_executed_transactions_count()
+        self.assertEqual(0, executed_transaction)
+
+        self.confirm_transaction_created(tx_results[0])
+        self.confirm_transaction_created(tx_results[1])
+        self.confirm_transaction_created(tx_results[3])
 
         # check executed transaction count (should be 1, the first 1->2 req change)
         executed_transaction = self.get_executed_transactions_count()

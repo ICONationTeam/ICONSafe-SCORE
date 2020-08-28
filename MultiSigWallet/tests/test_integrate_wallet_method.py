@@ -70,7 +70,8 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
             self.assertEqual(False, tx_result['status'])
 
     def test_add_wallet_owner(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # success case: add wallet user successfully
         result = self.add_wallet_owner(self._user.get_address(), "new_owner")
@@ -78,6 +79,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
         self.confirm_transaction(txuid, from_=self._owner2)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -92,6 +94,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('WalletAddressAlreadyExist({self._operator.get_address()})', 0)")
@@ -106,7 +109,8 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(expected_owners, owners)
 
     def test_replace_wallet_owner(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # success case: replace owner successfully(owner3 -> user)
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
@@ -115,6 +119,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
         self.confirm_transaction(txuid, from_=self._owner2)
         self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
 
@@ -131,13 +136,15 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(expected_owners_name, owners_names)
 
     def test_replace_wallet_owner_2(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: try replace wallet owner who is not listed
         unknown_user_uid = 123
         result = self.replace_wallet_owner(unknown_user_uid, self._user.get_address(), "user")
         txuid = self.get_transaction_created_uid(result)
 
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"""IconScoreException("LinkedNodeNotFound('WALLET_OWNERS_MANAGER_wallet_owners_UID_LINKED_LIST_DB', {unknown_user_uid})", 0)""")
@@ -153,7 +160,8 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(expected_owners_address, owners_address)
 
     def test_replace_wallet_owner_3(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: replace owner by operator
         owner3_uid = self.get_wallet_owner_uid(self._owner3.get_address())
@@ -162,6 +170,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('WalletAddressAlreadyExist({self._operator.get_address()})', 0)")
@@ -176,7 +185,8 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(expected_owners_address, owners_address)
 
     def test_remove_wallet_owner(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: try to remove wallet owner who is not listed
         unknown_user_uid = 123
@@ -184,6 +194,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"""IconScoreException("LinkedNodeNotFound('WALLET_OWNERS_MANAGER_wallet_owners_UID_LINKED_LIST_DB', {unknown_user_uid})", 0)""")
@@ -204,6 +215,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         txuid_created = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid_created, from_=self._operator)
         result = self.confirm_transaction(txuid_created, from_=self._owner2)
         self.assertEqual("EXECUTED", self.get_transaction(txuid_created)['state'])
 
@@ -227,6 +239,7 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
 
         # confirm transaction
         # InvalidWalletRequirements(1, 2)
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(1, 2)', 0)")
@@ -241,25 +254,29 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(expected_owners_address, owners_address)
 
     def test_change_requirement(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         result = self.set_wallet_owners_required(1)
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
         self.confirm_transaction(txuid, from_=self._owner2)
 
         # check the requirement(should be 1)
         self.assertEqual(1, self.get_wallet_owners_required())
 
     def test_change_requirement_2(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: change requirement to 0
         result = self.set_wallet_owners_required(0)
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(3, 0)', 0)")
@@ -271,13 +288,15 @@ class TestIntegrateWalletMethod(MultiSigWalletTests):
         self.assertEqual(2, self.get_wallet_owners_required())
 
     def test_change_requirement_3(self):
-        self.set_wallet_owners_required(2)
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
 
         # failure case: try to set requirement more than owners
         result = self.set_wallet_owners_required(4)
         txuid = self.get_transaction_created_uid(result)
 
         # confirm transaction
+        result = self.confirm_transaction(txuid, from_=self._operator)
         result = self.confirm_transaction(txuid, from_=self._owner2)
         txuid, error = self.get_transaction_execution_failure_uid(result)
         self.assertEqual(error, f"IconScoreException('InvalidWalletRequirements(3, 4)', 0)")

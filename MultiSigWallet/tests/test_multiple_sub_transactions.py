@@ -20,7 +20,7 @@ from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
 from MultiSigWallet.tests.utils import *
 
 
-class TestIntegrateSubmitTransaction(MultiSigWalletTests):
+class TestIntegrateSubmitSubTransaction(MultiSigWalletTests):
 
     def setUp(self):
         super().setUp()

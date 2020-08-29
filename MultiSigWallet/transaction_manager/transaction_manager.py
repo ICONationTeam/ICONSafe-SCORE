@@ -154,6 +154,7 @@ class TransactionManager:
         # --- Checks ---
         transaction._type.check(TransactionType.OUTGOING)
         transaction._state.check(OutgoingTransactionState.WAITING)
+        transaction.check_hasnt_participated(wallet_owner_uid)
 
         # --- OK from here ---
         transaction._confirmations.add(wallet_owner_uid)
@@ -196,6 +197,7 @@ class TransactionManager:
         # --- Checks ---
         transaction._type.check(TransactionType.OUTGOING)
         transaction._state.check(OutgoingTransactionState.WAITING)
+        transaction.check_hasnt_participated(wallet_owner_uid)
 
         # --- OK from here ---
         transaction._rejections.add(wallet_owner_uid)
@@ -232,13 +234,24 @@ class TransactionManager:
 
         self.TransactionRevoked(transaction_uid, wallet_owner_uid)
 
-        if len(transaction._confirmations) == 0 and len(transaction._rejections) == 0:
-            # None wants this transaction anymore, cancel it
-            transaction._state.set(OutgoingTransactionState.CANCELLED)
-            # Remove it from active transactions
-            self._waiting_transactions.remove(transaction_uid)
-            self._all_transactions.remove(transaction_uid)
-            self.TransactionCancelled(transaction_uid)
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def cancel_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
+        wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
+
+        # --- Checks ---
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
+        transaction.check_no_participation()
+
+        # --- OK from here ---
+        transaction._state.set(OutgoingTransactionState.CANCELLED)
+        # Remove it from active transactions
+        self._waiting_transactions.remove(transaction_uid)
+        self._all_transactions.remove(transaction_uid)
+        self.TransactionCancelled(transaction_uid)
 
     @external(readonly=True)
     @catch_exception

@@ -274,9 +274,22 @@ class MultiSigWalletTests(IconIntegrateTestBase):
             success
         )
 
+    def cancel_transaction(self, transaction_uid: int, from_=None, success=True):
+        return self._do_call(
+            from_,
+            'cancel_transaction',
+            {'transaction_uid': str(transaction_uid)},
+            success
+        )
+
     def get_transaction_created_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionCreated(int)':
+                return int(eventlog['indexed'][1], 0)
+
+    def get_transaction_cancelled_uid(self, tx) -> int:
+        for eventlog in tx['eventLogs']:
+            if eventlog['indexed'][0] == 'TransactionCancelled(int)':
                 return int(eventlog['indexed'][1], 0)
 
     def get_transaction_confirmed_uid(self, tx) -> int:

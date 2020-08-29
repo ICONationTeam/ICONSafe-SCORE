@@ -25,6 +25,14 @@ class OutgoingTransactionNotParticipated(Exception):
     pass
 
 
+class OutgoingTransactionAlreadyParticipated(Exception):
+    pass
+
+
+class OutgoingTransactionHasParticipation(Exception):
+    pass
+
+
 class OutgoingTransactionState:
     UNINITIALIZED = 0
     WAITING = 1
@@ -82,12 +90,25 @@ class OutgoingTransaction(Transaction):
         self._db = db
 
     # ================================================
+    #  Private methods
+    # ================================================
+    def _has_participated(self, wallet_owner_uid: int) -> bool:
+        return (self.has_confirmed(wallet_owner_uid) or self.has_rejected(wallet_owner_uid))
+
+    # ================================================
     #  Checks
     # ================================================
     def check_has_participated(self, wallet_owner_uid: int) -> None:
-        if (not self.has_confirmed(wallet_owner_uid) and
-                not self.has_rejected(wallet_owner_uid)):
+        if not self._has_participated(wallet_owner_uid):
             raise OutgoingTransactionNotParticipated(self._name, wallet_owner_uid)
+
+    def check_hasnt_participated(self, wallet_owner_uid: int) -> None:
+        if self._has_participated(wallet_owner_uid):
+            raise OutgoingTransactionAlreadyParticipated(self._name, wallet_owner_uid)
+
+    def check_no_participation(self) -> None:
+        if (len(self._confirmations) != 0 or len(self._rejections) != 0):
+            raise OutgoingTransactionHasParticipation(self._name)
 
     def has_confirmed(self, wallet_owner_uid: int) -> bool:
         return wallet_owner_uid in self._confirmations

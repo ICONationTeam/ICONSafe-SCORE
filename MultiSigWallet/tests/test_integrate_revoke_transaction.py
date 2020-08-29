@@ -37,12 +37,11 @@ class TestIntegrateRevokeTransaction(MultiSigWalletTests):
 
         # success case: revoke using confirmed wallet owner
         result = self.revoke_transaction(txuid)
-        self.assertEqual("CANCELLED", self.get_transaction(txuid)['state'])
+        self.assertEqual("WAITING", self.get_transaction(txuid)['state'])
 
         # check wallet_owners who has confirmed transaction(should be none)
         transaction = self.get_transaction(txuid)
         self.assertEqual(len(transaction['confirmations']), 0)
-        self.assertEqual(transaction['state'], 'CANCELLED')
 
         # failure case: revoke using not confirmed wallet owner
         result = self.set_wallet_owners_required(3)

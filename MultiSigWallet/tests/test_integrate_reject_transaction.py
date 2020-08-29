@@ -22,7 +22,7 @@ from MultiSigWallet.tests.utils import *
 ICX_FACTOR = 10 ** 18
 
 
-class TestIntegrateSubmitTransaction(MultiSigWalletTests):
+class TestIntegrateRejectTransaction(MultiSigWalletTests):
 
     def setUp(self):
         super().setUp()

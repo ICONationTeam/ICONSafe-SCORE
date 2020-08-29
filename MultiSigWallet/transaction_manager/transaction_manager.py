@@ -147,10 +147,7 @@ class TransactionManager:
         self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
-    @external
-    @catch_exception
-    @only_multisig_owner
-    def confirm_transaction(self, transaction_uid: int) -> None:
+    def _prepare_confirm_transaction(self, transaction_uid: int) -> Transaction:
         transaction = OutgoingTransaction(transaction_uid, self.db)
         wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
 
@@ -164,11 +161,21 @@ class TransactionManager:
 
         if len(transaction._confirmations) >= self._wallet_owners_required.get():
             # Enough confirmations for the current transaction, execute it
-
             # Move the transaction from the waiting transactions
             self._waiting_transactions.remove(transaction_uid)
             self._executed_transactions.append(transaction_uid)
+            transaction._executed_txhash.set(self.tx.hash)
 
+        return transaction
+
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def confirm_transaction(self, transaction_uid: int) -> None:
+        transaction = self._prepare_confirm_transaction(transaction_uid)
+
+        if len(transaction._confirmations) >= self._wallet_owners_required.get():
+            # Enough confirmations for the current transaction, execute it
             try:
                 self._external_call(transaction)
                 # Call success

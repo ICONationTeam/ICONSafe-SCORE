@@ -36,15 +36,15 @@ class Transaction:
         name = f"{Transaction._NAME}_{uid}"
         self._type = StateDB(f"{name}_type", db, value_type=TransactionType)
         self._created_timestamp = VarDB(f"{name}_created_timestamp", db, value_type=int)
-        self._txhash = VarDB(f"{name}_txhash", db, value_type=bytes)
+        self._created_txhash = VarDB(f"{name}_created_txhash", db, value_type=bytes)
         self._uid = uid
         self._name = name
         self._db = db
 
-    def build(self, txtype: int, timestamp: int, txhash: bytes) -> None:
+    def build(self, txtype: int, timestamp: int, created_txhash: bytes) -> None:
         self._type.set(txtype)
         self._created_timestamp.set(timestamp)
-        self._txhash.set(txhash)
+        self._created_txhash.set(created_txhash)
 
     # ================================================
     #  Internal methods
@@ -53,6 +53,6 @@ class Transaction:
         return {
             "uid": self._uid,
             "type": self._type.get_name(),
-            "txhash": f"0x{bytes.hex(self._txhash.get())}" if self._txhash.get() else "None",
+            "created_txhash": f"0x{bytes.hex(self._created_txhash.get())}" if self._created_txhash.get() else "None",
             "created_timestamp": self._created_timestamp.get()
         }

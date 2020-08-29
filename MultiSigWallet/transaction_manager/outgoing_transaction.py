@@ -78,6 +78,7 @@ class OutgoingTransaction(Transaction):
         self._state = StateDB(f"{name}_state", db, value_type=OutgoingTransactionState)
         self._sub_transactions = ArrayDB(f"{name}_sub_transactions", db, value_type=int)
         self._executed_timestamp = VarDB(f"{name}_executed_timestamp", db, value_type=int)
+        self._executed_txhash = VarDB(f"{name}_executed_txhash", db, value_type=bytes)
         self._db = db
 
     # ================================================
@@ -109,4 +110,5 @@ class OutgoingTransaction(Transaction):
                 for sub_transaction_uid in self._sub_transactions
             ],
             "executed_timestamp": self._executed_timestamp.get(),
+            "executed_txhash": f"0x{bytes.hex(self._executed_txhash.get())}" if self._executed_txhash.get() else "None"
         }

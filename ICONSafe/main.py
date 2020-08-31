@@ -22,17 +22,19 @@ from .consts import *
 from .wallet_owner_manager import *
 from .transaction_manager import *
 from .balance_history_manager import *
+from .wallet_settings_manager import *
 
 
-class MultiSigWallet(IconScoreBase,
-                     IconScoreMaintenance,
-                     IconScoreVersion,
-                     IconScoreExceptionHandler,
-                     WalletOwnersManager,
-                     TransactionManager,
-                     BalanceHistoryManager):
+class ICONSafe(IconScoreBase,
+               IconScoreMaintenance,
+               IconScoreVersion,
+               IconScoreExceptionHandler,
+               WalletOwnersManager,
+               TransactionManager,
+               BalanceHistoryManager,
+               WalletSettingsManager):
 
-    _NAME = 'MultiSigWallet'
+    _NAME = 'ICONSafe'
 
     # ================================================
     #  Event Logs
@@ -64,7 +66,7 @@ class MultiSigWallet(IconScoreBase,
     # ================================================
     @external(readonly=True)
     def name(self) -> str:
-        return MultiSigWallet._NAME
+        return ICONSafe._NAME
 
     @catch_exception
     @check_maintenance

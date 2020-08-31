@@ -2,7 +2,7 @@ from iconsdk.builder.transaction_builder import DeployTransactionBuilder
 from tbears.libs.icon_integrate_test import IconIntegrateTestBase, SCORE_INSTALL_ADDRESS
 from iconsdk.libs.in_memory_zip import gen_deploy_data_content
 from iconsdk.signed_transaction import SignedTransaction
-from MultiSigWallet.tests.utils import *
+from ICONSafe.tests.utils import *
 
 import json
 import os
@@ -10,7 +10,7 @@ import os
 DIR_PATH = os.path.abspath(os.path.dirname(__file__))
 
 
-class MultiSigWalletTests(IconIntegrateTestBase):
+class ICONSafeTests(IconIntegrateTestBase):
 
     TEST_HTTP_ENDPOINT_URI_V3 = "http://127.0.0.1:9000/api/v3"
     SCORE_PROJECT = os.path.abspath(os.path.join(DIR_PATH, '..'))

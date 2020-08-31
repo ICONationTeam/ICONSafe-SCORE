@@ -16,11 +16,11 @@
 
 import json
 
-from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
-from MultiSigWallet.tests.utils import *
+from ICONSafe.tests.msw_utils import ICONSafeTests
+from ICONSafe.tests.utils import *
 
 
-class TestIntegrateConfirmTransaction(MultiSigWalletTests):
+class TestIntegrateConfirmTransaction(ICONSafeTests):
 
     def setUp(self):
         super().setUp()

@@ -16,12 +16,12 @@
 
 import json
 
-from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
-from MultiSigWallet.balance_history_manager.consts import ICX_TOKEN_ADDRESS
-from MultiSigWallet.tests.utils import *
+from ICONSafe.tests.msw_utils import ICONSafeTests
+from ICONSafe.balance_history_manager.consts import ICX_TOKEN_ADDRESS
+from ICONSafe.tests.utils import *
 
 
-class TestIntegrateSubmitTransaction(MultiSigWalletTests):
+class TestIntegrateSubmitTransaction(ICONSafeTests):
 
     def setUp(self):
         super().setUp()

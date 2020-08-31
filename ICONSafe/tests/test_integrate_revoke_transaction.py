@@ -16,10 +16,10 @@
 
 import json
 
-from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
+from ICONSafe.tests.msw_utils import ICONSafeTests
 
 
-class TestIntegrateRevokeTransaction(MultiSigWalletTests):
+class TestIntegrateRevokeTransaction(ICONSafeTests):
 
     def setUp(self):
         super().setUp()

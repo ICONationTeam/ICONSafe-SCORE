@@ -2,10 +2,10 @@
   <img 
     src="" 
     width="120px"
-    alt="MultiSigWallet logo">
+    alt="ICONSafe logo">
 </p>
 
-<h1 align="center">MultiSigWallet</h1>
+<h1 align="center">ICONSafe</h1>
 
  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -15,17 +15,17 @@
 
 ## Developers Quick Start
 
-Here is a checklist you will need to follow in order to deploy MultiSigWallet to the Yeouido testnet:
+Here is a checklist you will need to follow in order to deploy ICONSafe to the Yeouido testnet:
 
   * Install prerequisites:
     * `python3 -m venv ./venv && source ./venv/bin/activate`
     * `pip install tbears`
     * `sudo apt install jq`
-  * Clone the MultiSigWallet repository:
-    * `git clone https://github.com/iconation/MultiSigWallet.git && cd MultiSigWallet`
-  * Bootstrap tbears using the `bootstrap_tbears.sh` script located in the tbears folder of the MultiSigWallet repository
+  * Clone the ICONSafe repository:
+    * `git clone https://github.com/iconation/ICONSafe.git && cd ICONSafe`
+  * Bootstrap tbears using the `bootstrap_tbears.sh` script located in the tbears folder of the ICONSafe repository
     * `./tbears/bootstrap_tbears.sh`
-  * Everytime you want to keep working on this contract, start tbears using the `start_tbears.sh` script located in the tbears folder of the MultiSigWallet repository
+  * Everytime you want to keep working on this contract, start tbears using the `start_tbears.sh` script located in the tbears folder of the ICONSafe repository
     * `./tbears/start_tbears.sh`
   * Install the operator wallets:
     * `./install.sh`
@@ -39,7 +39,7 @@ Here is a checklist you will need to follow in order to deploy MultiSigWallet to
   * Deploy your SCORE to the testnet:
     * `./scripts/score/deploy_score.sh -n yeouido`
     
-## Deploy MultiSigWallet SCORE to localhost, testnet or mainnet
+## Deploy ICONSafe SCORE to localhost, testnet or mainnet
 
 - In the root folder of the project, run the following command:
 <pre>./scripts/score/deploy_score.sh</pre>
@@ -57,9 +57,9 @@ Here is a checklist you will need to follow in order to deploy MultiSigWallet to
 - **Example** : 
 <pre>$ ./scripts/score/deploy_score.sh -n localhost</pre>
 
-## Update an already deployed MultiSigWallet to localhost, testnet or mainnet
+## Update an already deployed ICONSafe to localhost, testnet or mainnet
 
-- If you modified the MultiSigWallet SCORE source code, you may need to update it.
+- If you modified the ICONSafe SCORE source code, you may need to update it.
 
 - In the root folder of the project, run the following command:
 <pre>$ ./scripts/score/update_score.sh</pre>

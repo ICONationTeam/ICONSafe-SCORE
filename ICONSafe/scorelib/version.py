@@ -57,5 +57,5 @@ class IconScoreVersion:
     # ================================================
     @catch_exception
     @external(readonly=True)
-    def version_number(self) -> str:
+    def get_version_number(self) -> str:
         return self.__number.get()

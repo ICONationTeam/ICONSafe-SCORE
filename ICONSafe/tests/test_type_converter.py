@@ -17,14 +17,14 @@
 from iconservice import *
 from iconservice.base.exception import InvalidParamsException
 
-from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
-from MultiSigWallet.type_converter import ScoreTypeConverter
-from MultiSigWallet.tests import create_address, create_tx_hash, create_block_hash
+from ICONSafe.tests.msw_utils import ICONSafeTests
+from ICONSafe.type_converter import ScoreTypeConverter
+from ICONSafe.tests import create_address, create_tx_hash, create_block_hash
 
 # transaction's parameter accept json format so support string, int, bool, null, array as a type
 
 
-class TestTypeConverter(MultiSigWalletTests):
+class TestTypeConverter(ICONSafeTests):
     def test_type_converter_param_type(self):
         # failure case: not supported type(dict)
         self.assertRaises(IconScoreException, ScoreTypeConverter.convert, 'dict', '')

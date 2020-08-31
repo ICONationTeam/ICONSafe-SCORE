@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from MultiSigWallet.tests.msw_utils import MultiSigWalletTests
-from MultiSigWallet.tests.utils import *
+from ICONSafe.tests.msw_utils import ICONSafeTests
+from ICONSafe.tests.utils import *
 
 ICX_FACTOR = 10 ** 18
 
 
-class TestIntegrateSendIcx(MultiSigWalletTests):
+class TestIntegrateSendIcx(ICONSafeTests):
 
     def setUp(self):
         super().setUp()

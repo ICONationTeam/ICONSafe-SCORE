@@ -48,11 +48,13 @@ class ICONSafe(IconScoreBase,
 
     def on_install(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_install()
-        self.on_install_version_manager(VERSION)
-        self.on_install_wallet_settings_manager(DEFAULT_NAME)
+        # Initialize the wallet owner manager first, as some other components
+        # may need authentication from a wallet owner
         self.on_install_maintenance_manager(IconScoreMaintenanceStatus.DISABLED)
-        self.on_install_balance_history_manager()
+        self.on_install_version_manager(VERSION)
         self.on_install_wallet_owner_manager(owners, owners_required)
+        self.on_install_wallet_settings_manager(DEFAULT_NAME)
+        self.on_install_balance_history_manager()
 
     def on_update(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_update()

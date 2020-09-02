@@ -282,6 +282,14 @@ class ICONSafeTests(IconIntegrateTestBase):
             success
         )
 
+    def add_balance_tracker(self, token: Address, params=None, from_=None, success=True):
+        return self._do_call(
+            from_,
+            "add_balance_tracker",
+            {'token': str(token)},
+            success
+        )
+
     def get_transaction_created_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
             if eventlog['indexed'][0] == 'TransactionCreated(int)':
@@ -353,14 +361,6 @@ class ICONSafeTests(IconIntegrateTestBase):
              'description': 'change requirements to 2'})
 
         return self.submit_transaction(from_, [params], success)
-
-    def add_balance_tracker(self, token: Address, params=None, from_=None, success=True):
-        return self._do_call(
-            from_,
-            "add_balance_tracker",
-            {'token': str(token)},
-            success
-        )
 
     def add_wallet_owner(self, address: Address, name: str, from_=None, success=True):
         params = [

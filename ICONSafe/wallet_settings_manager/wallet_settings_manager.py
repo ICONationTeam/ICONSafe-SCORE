@@ -15,6 +15,8 @@
 # limitations under the License.
 
 from iconservice import *
+from ..scorelib import *
+from ..wallet_owner_manager import *
 
 
 class WalletSettingsManager:
@@ -29,6 +31,12 @@ class WalletSettingsManager:
         return VarDB(f'{WalletSettingsManager._NAME}_safe_name', self.db, value_type=str)
 
     # ================================================
+    #  Internal methods
+    # ================================================
+    def on_install_wallet_settings_manager(self, name: str) -> None:
+        self.set_safe_name(name)
+
+    # ================================================
     #  External methods
     # ================================================
     @external(readonly=True)
@@ -36,5 +44,7 @@ class WalletSettingsManager:
         return self._safe_name.get()
 
     @external
+    @catch_exception
+    @only_multisig_owner
     def set_safe_name(self, safe_name: str):
         self._safe_name.set(safe_name)

@@ -17,6 +17,7 @@
 from iconservice import *
 from ..scorelib import *
 from ..wallet_owner_manager import *
+from ..event_manager import *
 
 
 class WalletSettingsManager:
@@ -29,6 +30,14 @@ class WalletSettingsManager:
     @property
     def _safe_name(self) -> VarDB:
         return VarDB(f'{WalletSettingsManager._NAME}_safe_name', self.db, value_type=str)
+
+    # ================================================
+    #  Event Logs
+    # ================================================
+    @add_event
+    @eventlog
+    def WalletSettingsSafeNameChanged(self, safe_name: str):
+        pass
 
     # ================================================
     #  Internal methods
@@ -49,3 +58,4 @@ class WalletSettingsManager:
     @only_multisig_owner
     def set_safe_name(self, safe_name: str):
         self._safe_name.set(safe_name)
+        self.WalletSettingsSafeNameChanged(safe_name)

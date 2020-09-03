@@ -110,7 +110,7 @@ class TransactionManager:
             token, source, amount)
 
         self._all_transactions.append(transaction_uid)
-        self.TransactionCreated(transaction_uid)
+        # self.TransactionCreated(transaction_uid)
 
         self.update_balance_history_manager(transaction_uid)
 

@@ -23,6 +23,7 @@ from .wallet_owner_manager import *
 from .transaction_manager import *
 from .balance_history_manager import *
 from .wallet_settings_manager import *
+from .event_manager import *
 
 
 class ICONSafe(IconScoreBase,
@@ -32,7 +33,8 @@ class ICONSafe(IconScoreBase,
                WalletOwnersManager,
                TransactionManager,
                BalanceHistoryManager,
-               WalletSettingsManager):
+               WalletSettingsManager,
+               EventManager):
 
     _NAME = 'ICONSafe'
 
@@ -53,6 +55,7 @@ class ICONSafe(IconScoreBase,
         self.on_install_wallet_settings_manager(DEFAULT_NAME)
         self.on_install_balance_history_manager()
         self.on_install_wallet_owner_manager(owners, owners_required)
+        self.on_install_event_manager()
 
     def on_update(self, owners: List[WalletOwnerDescription], owners_required: int) -> None:
         super().on_update()

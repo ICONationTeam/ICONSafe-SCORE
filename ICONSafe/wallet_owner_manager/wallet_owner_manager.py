@@ -17,6 +17,7 @@
 from iconservice import *
 
 from ..scorelib import *
+from ..event_manager import *
 
 from .wallet_owner import *
 from .wallet_owner_factory import *
@@ -62,10 +63,12 @@ class WalletOwnersManager:
     # ================================================
     #  Event Logs
     # ================================================
+    @add_event
     @eventlog(indexed=1)
     def WalletOwnerAddition(self, wallet_owner_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=1)
     def WalletOwnerRemoval(self, wallet_owner_uid: int):
         pass

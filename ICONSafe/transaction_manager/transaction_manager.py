@@ -19,6 +19,7 @@ from iconservice import *
 from ..scorelib import *
 from ..type_converter import *
 from ..wallet_owner_manager import *
+from ..event_manager import *
 
 from .transaction import *
 from .transaction_factory import *
@@ -56,41 +57,45 @@ class TransactionManager:
     # ================================================
     #  Event Logs
     # ================================================
+    @add_event
     @eventlog(indexed=1)
     def TransactionCreated(self, transaction_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=2)
     def TransactionConfirmed(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=2)
     def TransactionRevoked(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=2)
     def TransactionRejected(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=1)
     def TransactionCancelled(self, transaction_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=1)
     def TransactionExecutionSuccess(self, transaction_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=1)
     def TransactionRejectionSuccess(self, transaction_uid: int):
         pass
 
+    @add_event
     @eventlog(indexed=1)
     def TransactionExecutionFailure(self, transaction_uid: int, error: str):
         pass
-
-    # ================================================
-    #  Checks
-    # ================================================
 
     # ================================================
     #  Internal methods

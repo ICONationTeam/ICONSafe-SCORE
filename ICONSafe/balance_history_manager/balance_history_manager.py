@@ -20,6 +20,7 @@ from ..scorelib import *
 from ..interfaces.irc2 import *
 from ..wallet_owner_manager import *
 from ..transaction_manager import *
+from ..event_manager import *
 from .consts import *
 from .balance_history import *
 
@@ -47,13 +48,10 @@ class BalanceHistoryManager:
     # ================================================
     #  Event Logs
     # ================================================
+    @add_event
     @eventlog(indexed=1)
     def BalanceHistoryCreated(self, balance_history_uid: int):
         pass
-
-    # ================================================
-    #  Checks
-    # ================================================
 
     # ================================================
     #  Private methods

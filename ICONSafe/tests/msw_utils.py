@@ -77,6 +77,10 @@ class ICONSafeTests(IconIntegrateTestBase):
             signed_transaction, self.icon_service)
 
         self.assertTrue('status' in result)
+
+        if result['status'] != 1:
+            print(result)
+
         self.assertEqual(1, result['status'])
         self.assertTrue('scoreAddress' in result)
 

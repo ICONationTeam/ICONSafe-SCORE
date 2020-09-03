@@ -24,6 +24,12 @@ from .transaction import *
 from .transaction_factory import *
 
 
+class CallTransactionProxyInterface(InterfaceScore):
+    @interface
+    def call_transaction(self) -> None:
+        pass
+
+
 class TransactionManager:
 
     _NAME = 'TRANSACTION_MANAGER'
@@ -104,10 +110,12 @@ class TransactionManager:
         self.update_balance_history_manager(transaction_uid)
 
     # ================================================
-    #  Private methods
+    #  External methods
     # ================================================
-    def _external_call(self, transaction: OutgoingTransaction) -> None:
-
+    @external
+    @only_wallet
+    def call_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
         # Get the execution time, even if the subtx fails
         transaction._executed_timestamp.set(self.now())
 
@@ -128,9 +136,6 @@ class TransactionManager:
             else:
                 self.icx.transfer(destination, amount)
 
-    # ================================================
-    #  External methods
-    # ================================================
     @external
     @catch_exception
     @only_multisig_owner
@@ -147,7 +152,10 @@ class TransactionManager:
         self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
-    def _prepare_confirm_transaction(self, transaction_uid: int) -> Transaction:
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def confirm_transaction(self, transaction_uid: int) -> None:
         transaction = OutgoingTransaction(transaction_uid, self.db)
         wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
 
@@ -167,18 +175,9 @@ class TransactionManager:
             self._executed_transactions.append(transaction_uid)
             transaction._executed_txhash.set(self.tx.hash)
 
-        return transaction
-
-    @external
-    @catch_exception
-    @only_multisig_owner
-    def confirm_transaction(self, transaction_uid: int) -> None:
-        transaction = self._prepare_confirm_transaction(transaction_uid)
-
-        if len(transaction._confirmations) >= self._wallet_owners_required.get():
-            # Enough confirmations for the current transaction, execute it
             try:
-                self._external_call(transaction)
+                proxy = self.create_interface_score(self.address, CallTransactionProxyInterface)
+                proxy.call_transaction(transaction_uid)
                 # Call success
                 self.update_balance_history_manager(transaction_uid)
                 transaction._state.set(OutgoingTransactionState.EXECUTED)

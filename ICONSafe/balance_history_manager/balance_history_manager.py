@@ -18,10 +18,8 @@ from iconservice import *
 
 from ..scorelib import *
 from ..interfaces.irc2 import *
-
-from ..wallet_owner_manager.wallet_owner import *
-from ..transaction_manager.transaction import *
-
+from ..wallet_owner_manager import *
+from ..transaction_manager import *
 from .consts import *
 from .balance_history import *
 

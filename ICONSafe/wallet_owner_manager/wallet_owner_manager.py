@@ -202,3 +202,16 @@ class WalletOwnersManager:
     @external(readonly=True)
     def get_wallet_owners_required(self) -> int:
         return self._wallet_owners_required.get()
+
+
+def only_multisig_owner(func):
+    if not isfunction(func):
+        raise NotAFunctionError
+
+    @wraps(func)
+    def __wrapper(self: object, *args, **kwargs):
+        if not self.is_wallet_owner(self.msg.sender):
+            raise SenderNotMultisigOwnerError(self.msg.sender)
+
+        return func(self, *args, **kwargs)
+    return __wrapper

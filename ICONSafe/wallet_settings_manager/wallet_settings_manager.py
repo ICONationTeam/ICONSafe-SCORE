@@ -33,8 +33,9 @@ class WalletSettingsManager:
     # ================================================
     #  Internal methods
     # ================================================
-    def on_install_wallet_settings_manager(self, name: str) -> None:
-        self.set_safe_name(name)
+    def on_install_wallet_settings_manager(self, safe_name: str) -> None:
+        # The deployer may not be a wallet owner, do not use set_safe_name
+        self._safe_name.set(safe_name)
 
     # ================================================
     #  External methods

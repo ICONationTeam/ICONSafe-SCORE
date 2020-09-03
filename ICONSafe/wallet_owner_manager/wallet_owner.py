@@ -44,16 +44,3 @@ class WalletOwner:
             "address": str(self._address.get()),
             "name": self._name.get()
         }
-
-
-def only_multisig_owner(func):
-    if not isfunction(func):
-        raise NotAFunctionError
-
-    @wraps(func)
-    def __wrapper(self: object, *args, **kwargs):
-        if not self.is_wallet_owner(self.msg.sender):
-            raise SenderNotMultisigOwnerError(self.msg.sender)
-
-        return func(self, *args, **kwargs)
-    return __wrapper

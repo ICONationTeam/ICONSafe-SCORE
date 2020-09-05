@@ -79,22 +79,22 @@ class TransactionManager:
 
     @add_event
     @eventlog(indexed=1)
-    def TransactionCancelled(self, transaction_uid: int):
+    def TransactionCancelled(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
     @add_event
     @eventlog(indexed=1)
-    def TransactionExecutionSuccess(self, transaction_uid: int):
+    def TransactionExecutionSuccess(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
     @add_event
     @eventlog(indexed=1)
-    def TransactionRejectionSuccess(self, transaction_uid: int):
+    def TransactionRejectionSuccess(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
     @add_event
     @eventlog(indexed=1)
-    def TransactionExecutionFailure(self, transaction_uid: int, error: str):
+    def TransactionExecutionFailure(self, transaction_uid: int, wallet_owner_uid: int, error: str):
         pass
 
     # ================================================
@@ -113,6 +113,17 @@ class TransactionManager:
         # self.TransactionCreated(transaction_uid)
 
         self.update_balance_history_manager(transaction_uid)
+
+    def serialize_transaction(self, transaction_uid: int) -> dict:
+        transaction = Transaction(transaction_uid, self.db)
+        transaction_type = transaction._type.get()
+
+        if transaction_type == TransactionType.OUTGOING:
+            return OutgoingTransaction(transaction_uid, self.db).serialize()
+        elif transaction_type == TransactionType.INCOMING:
+            return IncomingTransaction(transaction_uid, self.db).serialize()
+        else:
+            raise InvalidTransactionType(transaction._type.get())
 
     # ================================================
     #  External methods
@@ -186,10 +197,10 @@ class TransactionManager:
                 # Call success
                 self.update_balance_history_manager(transaction_uid)
                 transaction._state.set(OutgoingTransactionState.EXECUTED)
-                self.TransactionExecutionSuccess(transaction_uid)
+                self.TransactionExecutionSuccess(transaction_uid, wallet_owner_uid)
             except BaseException as e:
                 transaction._state.set(OutgoingTransactionState.FAILED)
-                self.TransactionExecutionFailure(transaction_uid, repr(e))
+                self.TransactionExecutionFailure(transaction_uid, wallet_owner_uid, repr(e))
 
     @external
     @catch_exception
@@ -214,9 +225,9 @@ class TransactionManager:
             self._waiting_transactions.remove(transaction_uid)
             self._rejected_transactions.append(transaction_uid)
 
-            # Call success
+            # Update the transaction state
             transaction._state.set(OutgoingTransactionState.REJECTED)
-            self.TransactionRejectionSuccess(transaction_uid)
+            self.TransactionRejectionSuccess(transaction_uid, wallet_owner_uid)
 
     @external
     @catch_exception
@@ -255,23 +266,12 @@ class TransactionManager:
         # Remove it from active transactions
         self._waiting_transactions.remove(transaction_uid)
         self._all_transactions.remove(transaction_uid)
-        self.TransactionCancelled(transaction_uid)
+        self.TransactionCancelled(transaction_uid, wallet_owner_uid)
 
     @external(readonly=True)
     @catch_exception
     def get_transaction(self, transaction_uid: int) -> dict:
         return self.serialize_transaction(transaction_uid)
-
-    def serialize_transaction(self, transaction_uid: int) -> dict:
-        transaction = Transaction(transaction_uid, self.db)
-        transaction_type = transaction._type.get()
-
-        if transaction_type == TransactionType.OUTGOING:
-            return OutgoingTransaction(transaction_uid, self.db).serialize()
-        elif transaction_type == TransactionType.INCOMING:
-            return IncomingTransaction(transaction_uid, self.db).serialize()
-        else:
-            raise InvalidTransactionType(transaction._type.get())
 
     @external(readonly=True)
     @catch_exception
@@ -284,12 +284,10 @@ class TransactionManager:
     @external(readonly=True)
     @catch_exception
     def get_all_transactions(self, offset: int = 0) -> list:
-        a = [
+        return [
             self.serialize_transaction(transaction_uid)
             for transaction_uid in self._all_transactions.select(offset)
         ]
-        Logger.warning(f'all = {a}')
-        return a
 
     @external(readonly=True)
     @catch_exception

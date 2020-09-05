@@ -73,6 +73,11 @@ class WalletOwnersManager:
     def WalletOwnerRemoval(self, wallet_owner_uid: int):
         pass
 
+    @add_event
+    @eventlog(indexed=1)
+    def WalletOwnersRequiredChanged(self, required: int):
+        pass
+
     # ================================================
     #  Checks
     # ================================================
@@ -154,7 +159,12 @@ class WalletOwnersManager:
     def replace_wallet_owner(self, old_wallet_owner_uid: int, new_address: Address, new_name: str) -> None:
         # --- Checks ---
         WalletOwnersManager._check_requirements(len(self._wallet_owners), self._wallet_owners_required.get())
-        self._check_address_doesnt_exist(new_address)
+        old_wallet_owner = WalletOwner(old_wallet_owner_uid, self.db)
+
+        # Check if only the name is changed
+        if not old_wallet_owner.same_address(new_address):
+            self._check_address_doesnt_exist(new_address)
+
         # --- OK from here ---
         new_wallet_owner_uid = WalletOwnerFactory.create(self.db, new_address, new_name)
         self._remove_wallet_owner(old_wallet_owner_uid)
@@ -168,6 +178,7 @@ class WalletOwnersManager:
         WalletOwnersManager._check_requirements(len(self._wallet_owners), owners_required)
         # --- OK from here ---
         self._wallet_owners_required.set(owners_required)
+        self.WalletOwnersRequiredChanged(owners_required)
 
     # ================================================
     #  External methods

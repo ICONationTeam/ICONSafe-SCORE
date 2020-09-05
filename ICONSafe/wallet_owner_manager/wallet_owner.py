@@ -38,6 +38,9 @@ class WalletOwner:
     # ================================================
     #  Internal methods
     # ================================================
+    def same_address(self, target_address: Address) -> bool:
+        return self._address.get() == target_address
+
     def serialize(self) -> dict:
         return {
             "uid": self._uid,

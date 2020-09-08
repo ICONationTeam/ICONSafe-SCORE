@@ -168,21 +168,8 @@ class TransactionManager:
         self._all_transactions.append(transaction_uid)
         self.TransactionCreated(transaction_uid)
 
-    @external
-    @catch_exception
-    @only_multisig_owner
-    def confirm_transaction(self, transaction_uid: int) -> None:
+    def try_execute_transaction(self, transaction_uid: int, wallet_owner_uid: int) -> None:
         transaction = OutgoingTransaction(transaction_uid, self.db)
-        wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
-
-        # --- Checks ---
-        transaction._type.check(TransactionType.OUTGOING)
-        transaction._state.check(OutgoingTransactionState.WAITING)
-        transaction.check_hasnt_participated(wallet_owner_uid)
-
-        # --- OK from here ---
-        transaction._confirmations.add(wallet_owner_uid)
-        self.TransactionConfirmed(transaction_uid, wallet_owner_uid)
 
         if len(transaction._confirmations) >= self._wallet_owners_required.get():
             # Enough confirmations for the current transaction, execute it
@@ -201,6 +188,24 @@ class TransactionManager:
             except BaseException as e:
                 transaction._state.set(OutgoingTransactionState.FAILED)
                 self.TransactionExecutionFailure(transaction_uid, wallet_owner_uid, repr(e))
+
+    @external
+    @catch_exception
+    @only_multisig_owner
+    def confirm_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
+        wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
+
+        # --- Checks ---
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
+        transaction.check_hasnt_participated(wallet_owner_uid)
+
+        # --- OK from here ---
+        transaction._confirmations.add(wallet_owner_uid)
+        self.TransactionConfirmed(transaction_uid, wallet_owner_uid)
+
+        self.try_execute_transaction(transaction_uid, wallet_owner_uid)
 
     @external
     @catch_exception

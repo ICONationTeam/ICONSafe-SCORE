@@ -306,3 +306,43 @@ class TestIntegrateWalletMethod(ICONSafeTests):
 
         # check the requirement(should be 2)
         self.assertEqual(2, self.get_wallet_owners_required())
+
+    def test_change_requirement_execution(self):
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
+
+        result = self.set_wallet_owners_required(3)
+        txuid = self.get_transaction_created_uid(result)
+
+        # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
+        self.confirm_transaction(txuid, from_=self._owner2)
+
+        # check the requirement(should be 3)
+        self.assertEqual(3, self.get_wallet_owners_required())
+
+        # Create a transaction when the requirement is 3
+        result = self.add_wallet_owner(self._user.get_address(), "new_owner")
+        add_owner_txuid = self.get_transaction_created_uid(result)
+
+        # confirm transaction by only 2 owners (should still be waiting)
+        self.confirm_transaction(add_owner_txuid, from_=self._operator)
+        self.confirm_transaction(add_owner_txuid, from_=self._owner2)
+        self.assertEqual("WAITING", self.get_transaction(add_owner_txuid)['state'])
+
+        # Reduce the requirement to 2
+        result = self.set_wallet_owners_required(2)
+        txuid = self.get_transaction_created_uid(result)
+
+        # confirm transaction
+        self.confirm_transaction(txuid, from_=self._operator)
+        self.confirm_transaction(txuid, from_=self._owner2)
+        self.confirm_transaction(txuid, from_=self._owner3)
+        self.assertEqual("EXECUTED", self.get_transaction(add_owner_txuid)['state'])
+
+        # The add owner should have been executed now
+        self.assertEqual("EXECUTED", self.get_transaction(add_owner_txuid)['state'])
+        owners = self.get_wallet_owners()
+        owners = list(map(lambda x: x['address'], owners))
+        expected_owners = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address(), self._user.get_address()]
+        self.assertEqual(expected_owners, owners)

@@ -174,11 +174,16 @@ class WalletOwnersManager:
     @only_wallet
     @external
     def set_wallet_owners_required(self, owners_required: int) -> None:
+        wallet_owner_uid = self.get_wallet_owner_uid(self.tx.origin)
+
         # --- Checks ---
         WalletOwnersManager._check_requirements(len(self._wallet_owners), owners_required)
         # --- OK from here ---
         self._wallet_owners_required.set(owners_required)
         self.WalletOwnersRequiredChanged(owners_required)
+
+        for transaction_uid in list(self._waiting_transactions):
+            self.try_execute_transaction(transaction_uid, wallet_owner_uid)
 
     # ================================================
     #  External methods

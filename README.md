@@ -1,11 +1,9 @@
 <p align="center">
   <img 
-    src="" 
-    width="120px"
+    src="https://i.imgur.com/Ei7w5Om.png" 
+    width="520px"
     alt="ICONSafe logo">
 </p>
-
-<h1 align="center">ICONSafe</h1>
 
  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 

@@ -346,3 +346,25 @@ class TestIntegrateWalletMethod(ICONSafeTests):
         owners = list(map(lambda x: x['address'], owners))
         expected_owners = [self._operator.get_address(), self._owner2.get_address(), self._owner3.get_address(), self._user.get_address()]
         self.assertEqual(expected_owners, owners)
+
+    def test_force_cancel_transaction(self):
+        result = self.set_wallet_owners_required(2)
+        result = self.confirm_transaction_created(result)
+
+        result = self.set_wallet_owners_required(3)
+        to_be_cancelled_txuid = self.get_transaction_created_uid(result)
+
+        # Only one confirmation
+        self.confirm_transaction(to_be_cancelled_txuid, from_=self._operator)
+        self.assertEqual("WAITING", self.get_transaction(to_be_cancelled_txuid)['state'])
+
+        result = self.force_cancel_transaction(to_be_cancelled_txuid)
+        txuid = self.get_transaction_created_uid(result)
+        # confirm & execute transaction
+        self.confirm_transaction(txuid, from_=self._operator)
+        self.confirm_transaction(txuid, from_=self._owner2)
+        print(self.get_transaction(txuid))
+        self.assertEqual("EXECUTED", self.get_transaction(txuid)['state'])
+
+        # Check if the previous transaction is cancelled
+        self.assertEqual("CANCELLED", self.get_transaction(to_be_cancelled_txuid)['state'])

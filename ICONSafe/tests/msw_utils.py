@@ -296,7 +296,7 @@ class ICONSafeTests(IconIntegrateTestBase):
 
     def get_transaction_created_uid(self, tx) -> int:
         for eventlog in tx['eventLogs']:
-            if eventlog['indexed'][0] == 'TransactionCreated(int)':
+            if eventlog['indexed'][0] == 'TransactionCreated(int,int)':
                 return int(eventlog['indexed'][1], 0)
 
     def get_transaction_cancelled_uid(self, tx) -> int:
@@ -363,6 +363,19 @@ class ICONSafeTests(IconIntegrateTestBase):
              'method_name': "set_wallet_owners_required",
              'params': params,
              'description': 'change requirements to 2'})
+
+        return self.submit_transaction(from_, [params], success)
+
+    def force_cancel_transaction(self, transaction_uid: int, from_=None, success=True):
+        params = [
+            {'name': 'transaction_uid', 'type': 'int', 'value': str(transaction_uid)}
+        ]
+
+        params = self._create_submit_transaction_params(
+            {'destination': str(self._score_address),
+             'method_name': "force_cancel_transaction",
+             'params': json.dumps(params),
+             'description': f'Force cancel a transaction: {transaction_uid}'})
 
         return self.submit_transaction(from_, [params], success)
 

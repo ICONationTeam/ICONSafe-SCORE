@@ -59,7 +59,7 @@ class TransactionManager:
     # ================================================
     @add_event
     @eventlog(indexed=1)
-    def TransactionCreated(self, transaction_uid: int):
+    def TransactionCreated(self, transaction_uid: int, wallet_owner_uid: int):
         pass
 
     @add_event
@@ -110,11 +110,37 @@ class TransactionManager:
             token, source, amount)
 
         self._all_transactions.append(transaction_uid)
-        # self.TransactionCreated(transaction_uid)
-
         self.update_balance_history_manager(transaction_uid)
 
-    def serialize_transaction(self, transaction_uid: int) -> dict:
+    def try_execute_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
+
+        if len(transaction._confirmations) >= self._wallet_owners_required.get():
+            # Enough confirmations for the current transaction, execute it
+            # Move the transaction from the waiting transactions
+            self._waiting_transactions.remove(transaction_uid)
+            self._executed_transactions.append(transaction_uid)
+            transaction._executed_txhash.set(self.tx.hash)
+
+            # Consider the executor as the last added confirmation
+            wallet_owner_uid = transaction._confirmations.last()
+
+            try:
+                proxy = self.create_interface_score(self.address, CallTransactionProxyInterface)
+                proxy.call_transaction(transaction_uid)
+                # Call success
+                self.update_balance_history_manager(transaction_uid)
+                transaction._state.set(OutgoingTransactionState.EXECUTED)
+                self.TransactionExecutionSuccess(transaction_uid, wallet_owner_uid)
+            except BaseException as e:
+                transaction._state.set(OutgoingTransactionState.FAILED)
+                Logger.warning(f"Failed to executed tx : {repr(e)}")
+                self.TransactionExecutionFailure(transaction_uid, wallet_owner_uid, repr(e))
+
+    # ================================================
+    #  Private methods
+    # ================================================
+    def _serialize_transaction(self, transaction_uid: int) -> dict:
         transaction = Transaction(transaction_uid, self.db)
         transaction_type = transaction._type.get()
 
@@ -154,8 +180,27 @@ class TransactionManager:
 
     @external
     @catch_exception
+    @only_wallet
+    def force_cancel_transaction(self, transaction_uid: int) -> None:
+        transaction = OutgoingTransaction(transaction_uid, self.db)
+        wallet_owner_uid = self.get_wallet_owner_uid(self.tx.origin)
+
+        # --- Checks ---
+        transaction._type.check(TransactionType.OUTGOING)
+        transaction._state.check(OutgoingTransactionState.WAITING)
+
+        # --- OK from here ---
+        transaction._state.set(OutgoingTransactionState.CANCELLED)
+        # Remove it from active transactions
+        self._waiting_transactions.remove(transaction_uid)
+        self._all_transactions.remove(transaction_uid)
+        self.TransactionCancelled(transaction_uid, wallet_owner_uid)
+
+    @external
+    @catch_exception
     @only_multisig_owner
     def submit_transaction(self, sub_transactions: str) -> None:
+        wallet_owner_uid = self.get_wallet_owner_uid(self.msg.sender)
 
         transaction_uid = TransactionFactory.create(
             self.db,
@@ -166,28 +211,7 @@ class TransactionManager:
 
         self._waiting_transactions.append(transaction_uid)
         self._all_transactions.append(transaction_uid)
-        self.TransactionCreated(transaction_uid)
-
-    def try_execute_transaction(self, transaction_uid: int, wallet_owner_uid: int) -> None:
-        transaction = OutgoingTransaction(transaction_uid, self.db)
-
-        if len(transaction._confirmations) >= self._wallet_owners_required.get():
-            # Enough confirmations for the current transaction, execute it
-            # Move the transaction from the waiting transactions
-            self._waiting_transactions.remove(transaction_uid)
-            self._executed_transactions.append(transaction_uid)
-            transaction._executed_txhash.set(self.tx.hash)
-
-            try:
-                proxy = self.create_interface_score(self.address, CallTransactionProxyInterface)
-                proxy.call_transaction(transaction_uid)
-                # Call success
-                self.update_balance_history_manager(transaction_uid)
-                transaction._state.set(OutgoingTransactionState.EXECUTED)
-                self.TransactionExecutionSuccess(transaction_uid, wallet_owner_uid)
-            except BaseException as e:
-                transaction._state.set(OutgoingTransactionState.FAILED)
-                self.TransactionExecutionFailure(transaction_uid, wallet_owner_uid, repr(e))
+        self.TransactionCreated(transaction_uid, wallet_owner_uid)
 
     @external
     @catch_exception
@@ -205,7 +229,7 @@ class TransactionManager:
         transaction._confirmations.add(wallet_owner_uid)
         self.TransactionConfirmed(transaction_uid, wallet_owner_uid)
 
-        self.try_execute_transaction(transaction_uid, wallet_owner_uid)
+        self.try_execute_transaction(transaction_uid)
 
     @external
     @catch_exception
@@ -276,13 +300,13 @@ class TransactionManager:
     @external(readonly=True)
     @catch_exception
     def get_transaction(self, transaction_uid: int) -> dict:
-        return self.serialize_transaction(transaction_uid)
+        return self._serialize_transaction(transaction_uid)
 
     @external(readonly=True)
     @catch_exception
     def get_waiting_transactions(self, offset: int = 0) -> list:
         return [
-            self.serialize_transaction(transaction_uid)
+            self._serialize_transaction(transaction_uid)
             for transaction_uid in self._waiting_transactions.select(offset)
         ]
 
@@ -290,7 +314,7 @@ class TransactionManager:
     @catch_exception
     def get_all_transactions(self, offset: int = 0) -> list:
         return [
-            self.serialize_transaction(transaction_uid)
+            self._serialize_transaction(transaction_uid)
             for transaction_uid in self._all_transactions.select(offset)
         ]
 
@@ -298,7 +322,7 @@ class TransactionManager:
     @catch_exception
     def get_executed_transactions(self, offset: int = 0) -> list:
         return [
-            self.serialize_transaction(transaction_uid)
+            self._serialize_transaction(transaction_uid)
             for transaction_uid in self._executed_transactions.select(offset)
         ]
 
@@ -306,7 +330,7 @@ class TransactionManager:
     @catch_exception
     def get_rejected_transactions(self, offset: int = 0) -> list:
         return [
-            self.serialize_transaction(transaction_uid)
+            self._serialize_transaction(transaction_uid)
             for transaction_uid in self._rejected_transactions.select(offset)
         ]
 

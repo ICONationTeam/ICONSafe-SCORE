@@ -81,8 +81,8 @@ class OutgoingTransaction(Transaction):
     def __init__(self, uid: int, db: IconScoreDatabase):
         super().__init__(uid, db)
         name = f"{OutgoingTransaction._NAME}_{uid}"
-        self._confirmations = SetDB(f"{name}_confirmations", db, value_type=int)
-        self._rejections = SetDB(f"{name}_rejections", db, value_type=int)
+        self._confirmations = SetDB(f"{name}_confirmations", db, value_type=int, order=True)
+        self._rejections = SetDB(f"{name}_rejections", db, value_type=int, order=True)
         self._state = StateDB(f"{name}_state", db, value_type=OutgoingTransactionState)
         self._sub_transactions = ArrayDB(f"{name}_sub_transactions", db, value_type=int)
         self._executed_timestamp = VarDB(f"{name}_executed_timestamp", db, value_type=int)

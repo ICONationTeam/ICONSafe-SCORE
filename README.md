@@ -9,7 +9,7 @@
 
 ## Introduction
 
-ICONSafe is a team wallet with advanced user managment. It is able to track tokens balance over time which is a unique feature that no other service provides. It is also able to send and receive any type of transactions. All outgoing transactions require confirmations from the wallet owners based on a vote before being executed. An outgoing transaction may contain multiple sub-transactions which are executed at the same time, so it is possible to create complex operations suiting for all type of situations.
+ICONSafe is a multisig wallet with advanced user managment. It is mostly useful for teams willing to share mutual funds. It is able to track tokens balance over time which is a unique feature that no other service provides. It is also able to send and receive any type of transactions. All outgoing transactions require confirmations from the wallet owners based on a vote before being executed. An outgoing transaction may contain multiple sub-transactions which are executed at the same time, so it is possible to create complex operations suiting for all type of situations.
 
 ## Table of Contents
 
